@@ -75,6 +75,11 @@ func NewServer(addr string, store tap.Store, meters map[uint8]*flow.Meter, simul
 	return s
 }
 
+// Handler returns the HTTP handler, for use with httptest.NewServer in tests.
+func (s *Server) Handler() http.Handler {
+	return s.http.Handler
+}
+
 // Broadcast sends a PourEvent to all connected WebSocket clients.
 func (s *Server) Broadcast(e flow.PourEvent) {
 	s.hub.Broadcast(pourEventToMap(e))

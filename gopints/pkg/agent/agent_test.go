@@ -16,6 +16,7 @@ func (m *mockLine) Close() error {
 }
 
 type mockRequester struct {
+	called       chan struct{}
 	lastChip     string
 	lastOffset   int
 	lastEdge     Edge
@@ -30,6 +31,7 @@ func (m *mockRequester) RequestLine(chip string, offset int, edge Edge, debounce
 	m.lastEdge = edge
 	m.lastDebounce = debounce
 	m.lastHandler = handler
+	close(m.called)
 	return m.mockLine, nil
 }
 
@@ -46,7 +48,7 @@ func TestObserver_Listen(t *testing.T) {
 	pin := 17
 	handler := &mockPulseHandler{}
 	line := &mockLine{}
-	requester := &mockRequester{mockLine: line}
+	requester := &mockRequester{mockLine: line, called: make(chan struct{})}
 
 	o := NewObserver(chip, pin, handler, WithRequester(requester), WithEdge(EdgeFalling), WithDebounce(10*time.Millisecond))
 
@@ -57,8 +59,12 @@ func TestObserver_Listen(t *testing.T) {
 		errCh <- o.Listen(ctx)
 	}()
 
-	// Wait for Listen to call RequestLine
-	time.Sleep(10 * time.Millisecond)
+	// Wait for Listen to call RequestLine (channel close is the memory barrier).
+	select {
+	case <-requester.called:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("Listen did not call RequestLine in time")
+	}
 
 	if requester.lastChip != chip {
 		t.Errorf("expected chip %s, got %s", chip, requester.lastChip)

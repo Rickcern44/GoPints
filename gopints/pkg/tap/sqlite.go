@@ -10,7 +10,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const schemaVersion = 2
+const schemaVersion = 3
 
 // SQLiteStore implements Store using a local SQLite database.
 // Use ":memory:" as path for in-process testing.
@@ -118,7 +118,7 @@ func (s *SQLiteStore) CreateKeg(ctx context.Context, keg Keg) (Keg, error) {
 	res, err := s.db.ExecContext(ctx,
 		`INSERT INTO kegs (beer_name, style, abv, brewery, notes, capacity_ml, added_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		keg.BeerName, keg.Style, keg.ABV, keg.Brewery, keg.Notes, keg.CapacityMl, now.Unix())
+		keg.BeerName, keg.Style, keg.ABV, keg.Brewery, keg.Notes, keg.CapacityMl, now.UnixMilli())
 	if err != nil {
 		return Keg{}, fmt.Errorf("tap: create keg: %w", err)
 	}
@@ -259,7 +259,7 @@ func (s *SQLiteStore) DeleteKegImage(ctx context.Context, id int64) error {
 func (s *SQLiteStore) RecordPour(ctx context.Context, pour Pour) (Pour, error) {
 	res, err := s.db.ExecContext(ctx,
 		`INSERT INTO pours (tap_id, volume_ml, started_at, ended_at) VALUES (?, ?, ?, ?)`,
-		pour.TapID, pour.VolumeMl, pour.StartedAt.Unix(), pour.EndedAt.Unix())
+		pour.TapID, pour.VolumeMl, pour.StartedAt.UnixMilli(), pour.EndedAt.UnixMilli())
 	if err != nil {
 		return Pour{}, fmt.Errorf("tap: record pour: %w", err)
 	}
@@ -302,8 +302,8 @@ func (s *SQLiteStore) queryPours(ctx context.Context, query string, args ...any)
 		if err := rows.Scan(&p.ID, &p.TapID, &p.VolumeMl, &startedAt, &endedAt); err != nil {
 			return nil, err
 		}
-		p.StartedAt = time.Unix(startedAt, 0).UTC()
-		p.EndedAt = time.Unix(endedAt, 0).UTC()
+		p.StartedAt = time.UnixMilli(startedAt).UTC()
+		p.EndedAt = time.UnixMilli(endedAt).UTC()
 		pours = append(pours, p)
 	}
 	return pours, rows.Err()
@@ -323,7 +323,7 @@ func scanKeg(s scanner) (Keg, error) {
 	if err != nil {
 		return Keg{}, err
 	}
-	k.AddedAt = time.Unix(addedAt, 0).UTC()
+	k.AddedAt = time.UnixMilli(addedAt).UTC()
 	return k, nil
 }
 
@@ -343,6 +343,11 @@ func migrate(db *sql.DB) error {
 	if v < 2 {
 		if err := applyMigration2(db); err != nil {
 			return fmt.Errorf("tap: migration 2: %w", err)
+		}
+	}
+	if v < 3 {
+		if err := applyMigration3(db); err != nil {
+			return fmt.Errorf("tap: migration 3: %w", err)
 		}
 	}
 
@@ -379,6 +384,22 @@ func applyMigration1(db *sql.DB) error {
 		CREATE INDEX IF NOT EXISTS pours_started_at ON pours(started_at DESC);
 	`)
 	return err
+}
+
+// applyMigration3 converts second-precision timestamps to milliseconds.
+// The heuristic: any timestamp < 2e12 is in seconds (year ~2033 in ms).
+func applyMigration3(db *sql.DB) error {
+	stmts := []string{
+		`UPDATE kegs  SET added_at   = added_at   * 1000 WHERE added_at   < 2000000000000`,
+		`UPDATE pours SET started_at = started_at * 1000 WHERE started_at < 2000000000000`,
+		`UPDATE pours SET ended_at   = ended_at   * 1000 WHERE ended_at   < 2000000000000`,
+	}
+	for _, stmt := range stmts {
+		if _, err := db.Exec(stmt); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func applyMigration2(db *sql.DB) error {
