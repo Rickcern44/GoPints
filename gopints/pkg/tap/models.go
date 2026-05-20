@@ -4,15 +4,15 @@ import "time"
 
 // Keg represents a keg of beer installed in the kegerator.
 type Keg struct {
-	ID            int64
-	BeerName      string
-	Style         string  // e.g. "IPA", "Stout", "Lager"
-	ABV           float64 // alcohol by volume, e.g. 6.5
-	Brewery       string
-	Notes         string // tasting notes or description
-	CapacityMl    float64
-	AddedAt       time.Time
-	ImageMimeType string // empty if no image stored
+	ID            int64     `json:"id"`
+	BeerName      string    `json:"beer_name"`
+	Style         string    `json:"style"`
+	ABV           float64   `json:"abv"`
+	Brewery       string    `json:"brewery"`
+	Notes         string    `json:"notes"`
+	CapacityMl    float64   `json:"capacity_ml"`
+	AddedAt       time.Time `json:"added_at"`
+	ImageMimeType string    `json:"image_mime_type"`
 }
 
 // KegStats summarises pour activity for a keg.
@@ -26,16 +26,16 @@ type KegStats struct {
 
 // Tap is a physical tap line. It may or may not have a keg assigned.
 type Tap struct {
-	ID    uint8
-	KegID *int64
-	Keg   *Keg // populated by store reads; nil if no keg assigned
+	ID    uint8  `json:"id"`
+	KegID *int64 `json:"keg_id"`
+	Keg   *Keg   `json:"keg"`
 }
 
 // Pour is a recorded pour event with final volume.
 type Pour struct {
-	ID        int64
-	TapID     uint8
-	VolumeMl  float64
-	StartedAt time.Time
-	EndedAt   time.Time
+	ID        int64     `json:"id"`
+	TapID     uint8     `json:"tap_id"`
+	VolumeMl  float64   `json:"volume_ml"`
+	StartedAt time.Time `json:"started_at"`
+	EndedAt   time.Time `json:"ended_at"`
 }

@@ -36,6 +36,9 @@ type mockStore struct {
 	listPoursFn      func(ctx context.Context, limit, offset int) ([]tap.Pour, error)
 	listPoursByTapFn func(ctx context.Context, tapID uint8, limit, offset int) ([]tap.Pour, error)
 	deletePourFn     func(ctx context.Context, id int64) error
+	getSettingFn     func(ctx context.Context, key string) (string, error)
+	setSettingFn     func(ctx context.Context, key, value string) error
+	deleteSettingFn  func(ctx context.Context, key string) error
 }
 
 func (m *mockStore) EnsureTap(ctx context.Context, id uint8) error {
@@ -146,12 +149,33 @@ func (m *mockStore) DeletePour(ctx context.Context, id int64) error {
 	}
 	return m.deletePourFn(ctx, id)
 }
+func (m *mockStore) GetSetting(ctx context.Context, key string) (string, error) {
+	if m.getSettingFn == nil {
+		panic("unexpected call to GetSetting")
+	}
+	return m.getSettingFn(ctx, key)
+}
+func (m *mockStore) SetSetting(ctx context.Context, key, value string) error {
+	if m.setSettingFn == nil {
+		panic("unexpected call to SetSetting")
+	}
+	return m.setSettingFn(ctx, key, value)
+}
+func (m *mockStore) DeleteSetting(ctx context.Context, key string) error {
+	if m.deleteSettingFn == nil {
+		panic("unexpected call to DeleteSetting")
+	}
+	return m.deleteSettingFn(ctx, key)
+}
 
 // --- Helpers ---
+
+const testAuthToken = "test-auth-token"
 
 func newTestServer(t *testing.T, store tap.Store, simulate bool) *httptest.Server {
 	t.Helper()
 	srv := api.NewServer("", store, nil, simulate, "test")
+	srv.SeedSession(testAuthToken)
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 	return ts
@@ -173,6 +197,30 @@ func do(t *testing.T, ts *httptest.Server, method, path string, body any) *http.
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("do request: %v", err)
+	}
+	return resp
+}
+
+func doAuthed(t *testing.T, ts *httptest.Server, method, path string, body any) *http.Response {
+	t.Helper()
+	var reqBody *bytes.Reader
+	if body != nil {
+		b, _ := json.Marshal(body)
+		reqBody = bytes.NewReader(b)
+	} else {
+		reqBody = bytes.NewReader(nil)
+	}
+	req, err := http.NewRequest(method, ts.URL+path, reqBody)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	req.Header.Set("Authorization", "Bearer "+testAuthToken)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("do request: %v", err)
@@ -286,7 +334,7 @@ func TestHandleSetTapKeg(t *testing.T) {
 		},
 	}
 	ts := newTestServer(t, store, false)
-	resp := do(t, ts, "PUT", "/api/taps/1/keg", map[string]any{"keg_id": 5})
+	resp := doAuthed(t, ts, "PUT", "/api/taps/1/keg", map[string]any{"keg_id": 5})
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusNoContent {
 		t.Errorf("want 204, got %d", resp.StatusCode)
@@ -300,6 +348,7 @@ func TestHandleSetTapKeg_BadBody(t *testing.T) {
 	ts := newTestServer(t, &mockStore{}, false)
 	req, _ := http.NewRequest("PUT", ts.URL+"/api/taps/1/keg", strings.NewReader("not json"))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+testAuthToken)
 	resp, _ := http.DefaultClient.Do(req)
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusBadRequest {
@@ -312,7 +361,7 @@ func TestHandleRemoveTapKeg(t *testing.T) {
 		removeTapKegFn: func(_ context.Context, tapID uint8) error { return nil },
 	}
 	ts := newTestServer(t, store, false)
-	resp := do(t, ts, "DELETE", "/api/taps/1/keg", nil)
+	resp := doAuthed(t, ts, "DELETE", "/api/taps/1/keg", nil)
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusNoContent {
 		t.Errorf("want 204, got %d", resp.StatusCode)
@@ -347,7 +396,7 @@ func TestHandleCreateKeg(t *testing.T) {
 		},
 	}
 	ts := newTestServer(t, store, false)
-	resp := do(t, ts, "POST", "/api/kegs", map[string]any{
+	resp := doAuthed(t, ts, "POST", "/api/kegs", map[string]any{
 		"beer_name":   "Hazy IPA",
 		"style":       "IPA",
 		"abv":         6.5,
@@ -405,7 +454,7 @@ func TestHandleUpdateKeg_PartialPatch(t *testing.T) {
 	}
 	ts := newTestServer(t, store, false)
 	// Only update BeerName; Style and ABV should be unchanged.
-	resp := do(t, ts, "PATCH", "/api/kegs/1", map[string]any{"beer_name": "Renamed"})
+	resp := doAuthed(t, ts, "PATCH", "/api/kegs/1", map[string]any{"beer_name": "Renamed"})
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("want 200, got %d", resp.StatusCode)
 	}
@@ -426,7 +475,7 @@ func TestHandleDeleteKeg(t *testing.T) {
 		deleteKegFn: func(_ context.Context, id int64) error { return nil },
 	}
 	ts := newTestServer(t, store, false)
-	resp := do(t, ts, "DELETE", "/api/kegs/1", nil)
+	resp := doAuthed(t, ts, "DELETE", "/api/kegs/1", nil)
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusNoContent {
 		t.Errorf("want 204, got %d", resp.StatusCode)
@@ -463,6 +512,7 @@ func TestHandleSetKegImage_OK(t *testing.T) {
 	imageData := []byte{0xFF, 0xD8, 0xFF, 0xE0}
 	req, _ := http.NewRequest("PUT", ts.URL+"/api/kegs/1/image", bytes.NewReader(imageData))
 	req.Header.Set("Content-Type", "image/jpeg")
+	req.Header.Set("Authorization", "Bearer "+testAuthToken)
 	resp, _ := http.DefaultClient.Do(req)
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusNoContent {
@@ -473,6 +523,7 @@ func TestHandleSetKegImage_OK(t *testing.T) {
 func TestHandleSetKegImage_MissingContentType(t *testing.T) {
 	ts := newTestServer(t, &mockStore{}, false)
 	req, _ := http.NewRequest("PUT", ts.URL+"/api/kegs/1/image", bytes.NewReader([]byte{0x01}))
+	req.Header.Set("Authorization", "Bearer "+testAuthToken)
 	resp, _ := http.DefaultClient.Do(req)
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusBadRequest {
@@ -486,6 +537,7 @@ func TestHandleSetKegImage_TooLarge(t *testing.T) {
 	big := make([]byte, 11<<20)
 	req, _ := http.NewRequest("PUT", ts.URL+"/api/kegs/1/image", bytes.NewReader(big))
 	req.Header.Set("Content-Type", "image/jpeg")
+	req.Header.Set("Authorization", "Bearer "+testAuthToken)
 	resp, _ := http.DefaultClient.Do(req)
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusRequestEntityTooLarge {
@@ -530,7 +582,7 @@ func TestHandleDeleteKegImage(t *testing.T) {
 		deleteKegImageFn: func(_ context.Context, id int64) error { return nil },
 	}
 	ts := newTestServer(t, store, false)
-	resp := do(t, ts, "DELETE", "/api/kegs/1/image", nil)
+	resp := doAuthed(t, ts, "DELETE", "/api/kegs/1/image", nil)
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusNoContent {
 		t.Errorf("want 204, got %d", resp.StatusCode)
@@ -581,7 +633,7 @@ func TestHandleDeletePour(t *testing.T) {
 		deletePourFn: func(_ context.Context, id int64) error { return nil },
 	}
 	ts := newTestServer(t, store, false)
-	resp := do(t, ts, "DELETE", "/api/pours/5", nil)
+	resp := doAuthed(t, ts, "DELETE", "/api/pours/5", nil)
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusNoContent {
 		t.Errorf("want 204, got %d", resp.StatusCode)
@@ -597,6 +649,199 @@ func TestHandleSimulatePour_Forbidden_WhenNotSimulate(t *testing.T) {
 	if resp.StatusCode != http.StatusNotFound {
 		// Route doesn't even exist when simulate=false.
 		t.Logf("got status %d (route not registered when simulate=false)", resp.StatusCode)
+	}
+}
+
+// --- Admin auth ---
+
+func authedDo(t *testing.T, ts *httptest.Server, method, path string, body any) *http.Response {
+	t.Helper()
+	// Set up a server with a known session token for auth tests.
+	// For handler tests, we use a pre-seeded token via the server's sessions field.
+	return do(t, ts, method, path, body)
+}
+
+func TestHandleAdminStatus_NoPassword(t *testing.T) {
+	store := &mockStore{
+		getSettingFn: func(_ context.Context, key string) (string, error) {
+			return "", fmt.Errorf("not found")
+		},
+	}
+	ts := newTestServer(t, store, false)
+	resp := do(t, ts, "GET", "/api/admin/status", nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("want 200, got %d", resp.StatusCode)
+	}
+	var body map[string]bool
+	decodeJSON(t, resp, &body)
+	if body["password_set"] {
+		t.Error("want password_set=false")
+	}
+}
+
+func TestHandleAdminStatus_PasswordSet(t *testing.T) {
+	store := &mockStore{
+		getSettingFn: func(_ context.Context, key string) (string, error) {
+			return "$2a$10$hash", nil
+		},
+	}
+	ts := newTestServer(t, store, false)
+	resp := do(t, ts, "GET", "/api/admin/status", nil)
+	var body map[string]bool
+	decodeJSON(t, resp, &body)
+	if !body["password_set"] {
+		t.Error("want password_set=true")
+	}
+}
+
+func TestHandleAdminSetup_AlreadySet(t *testing.T) {
+	store := &mockStore{
+		getSettingFn: func(_ context.Context, key string) (string, error) {
+			return "hash", nil // password already exists
+		},
+	}
+	ts := newTestServer(t, store, false)
+	resp := do(t, ts, "POST", "/api/admin/setup", map[string]any{"password": "newpass"})
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusConflict {
+		t.Errorf("want 409, got %d", resp.StatusCode)
+	}
+}
+
+func TestHandleAdminLogin_WrongPassword(t *testing.T) {
+	store := &mockStore{
+		getSettingFn: func(_ context.Context, key string) (string, error) {
+			// bcrypt hash of "correct"
+			return "$2a$10$invalid", nil
+		},
+	}
+	ts := newTestServer(t, store, false)
+	resp := do(t, ts, "POST", "/api/admin/login", map[string]any{"password": "wrong"})
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("want 401, got %d", resp.StatusCode)
+	}
+}
+
+func TestHandleAdminLogin_NoPassword(t *testing.T) {
+	store := &mockStore{
+		getSettingFn: func(_ context.Context, key string) (string, error) {
+			return "", fmt.Errorf("not found")
+		},
+	}
+	ts := newTestServer(t, store, false)
+	resp := do(t, ts, "POST", "/api/admin/login", map[string]any{"password": "any"})
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("want 401, got %d", resp.StatusCode)
+	}
+}
+
+func TestRequireAuth_Rejects_Missing_Token(t *testing.T) {
+	store := &mockStore{
+		deleteKegFn: func(_ context.Context, id int64) error { return nil },
+	}
+	ts := newTestServer(t, store, false)
+	resp := do(t, ts, "DELETE", "/api/kegs/1", nil) // no auth header
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("want 401, got %d", resp.StatusCode)
+	}
+}
+
+// --- Banner ---
+
+func TestHandleGetBanner_OK(t *testing.T) {
+	store := &mockStore{
+		getSettingFn: func(_ context.Context, key string) (string, error) {
+			return "Tap 2 offline for cleaning", nil
+		},
+	}
+	ts := newTestServer(t, store, false)
+	resp := do(t, ts, "GET", "/api/banner", nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("want 200, got %d", resp.StatusCode)
+	}
+	var body map[string]string
+	decodeJSON(t, resp, &body)
+	if body["message"] != "Tap 2 offline for cleaning" {
+		t.Errorf("unexpected message: %q", body["message"])
+	}
+}
+
+func TestHandleGetBanner_NotFound(t *testing.T) {
+	store := &mockStore{
+		getSettingFn: func(_ context.Context, key string) (string, error) {
+			return "", fmt.Errorf("not found")
+		},
+	}
+	ts := newTestServer(t, store, false)
+	resp := do(t, ts, "GET", "/api/banner", nil)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("want 404, got %d", resp.StatusCode)
+	}
+}
+
+func TestHandleSetBanner_OK(t *testing.T) {
+	var savedKey, savedValue string
+	store := &mockStore{
+		setSettingFn: func(_ context.Context, key, value string) error {
+			savedKey, savedValue = key, value
+			return nil
+		},
+	}
+	ts := newTestServer(t, store, false)
+	resp := doAuthed(t, ts, "PUT", "/api/banner", map[string]any{"message": "Cheers!"})
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent {
+		t.Errorf("want 204, got %d", resp.StatusCode)
+	}
+	if savedKey != "banner" {
+		t.Errorf("want key=banner, got %q", savedKey)
+	}
+	if savedValue != "Cheers!" {
+		t.Errorf("want value=Cheers!, got %q", savedValue)
+	}
+}
+
+func TestHandleSetBanner_EmptyMessage(t *testing.T) {
+	ts := newTestServer(t, &mockStore{}, false)
+	resp := doAuthed(t, ts, "PUT", "/api/banner", map[string]any{"message": ""})
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("want 400, got %d", resp.StatusCode)
+	}
+}
+
+func TestHandleSetBanner_BadBody(t *testing.T) {
+	ts := newTestServer(t, &mockStore{}, false)
+	req, _ := http.NewRequest("PUT", ts.URL+"/api/banner", strings.NewReader("not json"))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+testAuthToken)
+	resp, _ := http.DefaultClient.Do(req)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("want 400, got %d", resp.StatusCode)
+	}
+}
+
+func TestHandleDeleteBanner(t *testing.T) {
+	called := false
+	store := &mockStore{
+		deleteSettingFn: func(_ context.Context, key string) error {
+			called = true
+			return nil
+		},
+	}
+	ts := newTestServer(t, store, false)
+	resp := doAuthed(t, ts, "DELETE", "/api/banner", nil)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent {
+		t.Errorf("want 204, got %d", resp.StatusCode)
+	}
+	if !called {
+		t.Error("DeleteSetting was not called")
 	}
 }
 

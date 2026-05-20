@@ -10,7 +10,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const schemaVersion = 3
+const schemaVersion = 5
 
 // SQLiteStore implements Store using a local SQLite database.
 // Use ":memory:" as path for in-process testing.
@@ -49,8 +49,48 @@ func (s *SQLiteStore) EnsureTap(ctx context.Context, id uint8) error {
 	return nil
 }
 
+const tapWithKegSelect = `
+	SELECT t.id, t.keg_id,
+	       k.id, k.beer_name, k.style, k.abv, k.brewery, k.notes, k.capacity_ml, k.added_at, k.image_mime_type
+	FROM taps t
+	LEFT JOIN kegs k ON k.id = t.keg_id`
+
+func scanTapWithKeg(row scanner) (Tap, error) {
+	var t Tap
+	var kegID sql.NullInt64
+	var kID, addedAt sql.NullInt64
+	var beerName, style, brewery, notes, imageMimeType sql.NullString
+	var abv, capacityMl sql.NullFloat64
+	err := row.Scan(
+		&t.ID, &kegID,
+		&kID, &beerName, &style, &abv, &brewery, &notes, &capacityMl, &addedAt, &imageMimeType,
+	)
+	if err != nil {
+		return Tap{}, err
+	}
+	if kegID.Valid {
+		id := kegID.Int64
+		t.KegID = &id
+	}
+	if kID.Valid {
+		keg := Keg{
+			ID:            kID.Int64,
+			BeerName:      beerName.String,
+			Style:         style.String,
+			ABV:           abv.Float64,
+			Brewery:       brewery.String,
+			Notes:         notes.String,
+			CapacityMl:    capacityMl.Float64,
+			AddedAt:       time.UnixMilli(addedAt.Int64).UTC(),
+			ImageMimeType: imageMimeType.String,
+		}
+		t.Keg = &keg
+	}
+	return t, nil
+}
+
 func (s *SQLiteStore) ListTaps(ctx context.Context) ([]Tap, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, keg_id FROM taps ORDER BY id`)
+	rows, err := s.db.QueryContext(ctx, tapWithKegSelect+` ORDER BY t.id`)
 	if err != nil {
 		return nil, fmt.Errorf("tap: list taps: %w", err)
 	}
@@ -58,15 +98,9 @@ func (s *SQLiteStore) ListTaps(ctx context.Context) ([]Tap, error) {
 
 	var taps []Tap
 	for rows.Next() {
-		var t Tap
-		if err := rows.Scan(&t.ID, &t.KegID); err != nil {
+		t, err := scanTapWithKeg(rows)
+		if err != nil {
 			return nil, err
-		}
-		if t.KegID != nil {
-			keg, err := s.GetKeg(ctx, *t.KegID)
-			if err == nil {
-				t.Keg = &keg
-			}
 		}
 		taps = append(taps, t)
 	}
@@ -74,30 +108,26 @@ func (s *SQLiteStore) ListTaps(ctx context.Context) ([]Tap, error) {
 }
 
 func (s *SQLiteStore) GetTap(ctx context.Context, id uint8) (Tap, error) {
-	var t Tap
-	err := s.db.QueryRowContext(ctx, `SELECT id, keg_id FROM taps WHERE id = ?`, id).
-		Scan(&t.ID, &t.KegID)
+	t, err := scanTapWithKeg(s.db.QueryRowContext(ctx, tapWithKegSelect+` WHERE t.id = ?`, id))
 	if errors.Is(err, sql.ErrNoRows) {
 		return Tap{}, fmt.Errorf("tap: tap %d not found", id)
 	}
 	if err != nil {
 		return Tap{}, fmt.Errorf("tap: get tap %d: %w", id, err)
 	}
-	if t.KegID != nil {
-		keg, err := s.GetKeg(ctx, *t.KegID)
-		if err == nil {
-			t.Keg = &keg
-		}
-	}
 	return t, nil
 }
 
 func (s *SQLiteStore) SetTapKeg(ctx context.Context, tapID uint8, kegID int64) error {
-	_, err := s.db.ExecContext(ctx,
+	// A keg can only be on one tap at a time — clear it from any other tap first.
+	if _, err := s.db.ExecContext(ctx,
+		`UPDATE taps SET keg_id = NULL WHERE keg_id = ? AND id != ?`, kegID, tapID); err != nil {
+		return fmt.Errorf("tap: clear keg %d from other taps: %w", kegID, err)
+	}
+	if _, err := s.db.ExecContext(ctx,
 		`INSERT INTO taps (id, keg_id) VALUES (?, ?)
 		 ON CONFLICT(id) DO UPDATE SET keg_id = excluded.keg_id`,
-		tapID, kegID)
-	if err != nil {
+		tapID, kegID); err != nil {
 		return fmt.Errorf("tap: set tap %d keg: %w", tapID, err)
 	}
 	return nil
@@ -309,6 +339,39 @@ func (s *SQLiteStore) queryPours(ctx context.Context, query string, args ...any)
 	return pours, rows.Err()
 }
 
+// --- Settings ---
+
+func (s *SQLiteStore) GetSetting(ctx context.Context, key string) (string, error) {
+	var value string
+	err := s.db.QueryRowContext(ctx, `SELECT value FROM settings WHERE key = ?`, key).Scan(&value)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", fmt.Errorf("tap: setting %q not found", key)
+	}
+	if err != nil {
+		return "", fmt.Errorf("tap: get setting %q: %w", key, err)
+	}
+	return value, nil
+}
+
+func (s *SQLiteStore) SetSetting(ctx context.Context, key, value string) error {
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO settings (key, value) VALUES (?, ?)
+		 ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+		key, value)
+	if err != nil {
+		return fmt.Errorf("tap: set setting %q: %w", key, err)
+	}
+	return nil
+}
+
+func (s *SQLiteStore) DeleteSetting(ctx context.Context, key string) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM settings WHERE key = ?`, key)
+	if err != nil {
+		return fmt.Errorf("tap: delete setting %q: %w", key, err)
+	}
+	return nil
+}
+
 // --- Scan helpers ---
 
 type scanner interface {
@@ -348,6 +411,16 @@ func migrate(db *sql.DB) error {
 	if v < 3 {
 		if err := applyMigration3(db); err != nil {
 			return fmt.Errorf("tap: migration 3: %w", err)
+		}
+	}
+	if v < 4 {
+		if err := applyMigration4(db); err != nil {
+			return fmt.Errorf("tap: migration 4: %w", err)
+		}
+	}
+	if v < 5 {
+		if err := applyMigration5(db); err != nil {
+			return fmt.Errorf("tap: migration 5: %w", err)
 		}
 	}
 
@@ -400,6 +473,38 @@ func applyMigration3(db *sql.DB) error {
 		}
 	}
 	return nil
+}
+
+func applyMigration5(db *sql.DB) error {
+	// Recreate taps with UNIQUE constraint on keg_id (one tap per keg at a time).
+	// SQLite requires table recreation to add constraints to existing columns.
+	stmts := []string{
+		`PRAGMA foreign_keys=OFF`,
+		`CREATE TABLE taps_new (
+			id     INTEGER PRIMARY KEY,
+			keg_id INTEGER UNIQUE REFERENCES kegs(id)
+		)`,
+		`INSERT INTO taps_new SELECT id, keg_id FROM taps`,
+		`DROP TABLE taps`,
+		`ALTER TABLE taps_new RENAME TO taps`,
+		`PRAGMA foreign_keys=ON`,
+	}
+	for _, stmt := range stmts {
+		if _, err := db.Exec(stmt); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func applyMigration4(db *sql.DB) error {
+	_, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS settings (
+			key   TEXT PRIMARY KEY,
+			value TEXT NOT NULL DEFAULT ''
+		);
+	`)
+	return err
 }
 
 func applyMigration2(db *sql.DB) error {

@@ -16,8 +16,8 @@ func TestDefault_KeyValues(t *testing.T) {
 	if cfg.Agent.ServerUDP != "localhost:9876" {
 		t.Errorf("ServerUDP: want localhost:9876, got %q", cfg.Agent.ServerUDP)
 	}
-	if !cfg.Agent.Simulate {
-		t.Error("default Simulate should be true")
+	if cfg.Agent.Simulate {
+		t.Error("default Simulate should be false")
 	}
 	if cfg.Server.PulsesPerLiter != 450 {
 		t.Errorf("PulsesPerLiter: want 450, got %f", cfg.Server.PulsesPerLiter)

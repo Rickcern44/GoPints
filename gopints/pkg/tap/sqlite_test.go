@@ -33,6 +33,32 @@ func TestSQLiteStore_Migration(t *testing.T) {
 
 // --- Tap ---
 
+func TestSQLiteStore_SetTapKeg_OneKegPerTap(t *testing.T) {
+	s := newTestStore(t)
+	keg, _ := s.CreateKeg(ctx(), tap.Keg{BeerName: "IPA", CapacityMl: 19000})
+	s.EnsureTap(ctx(), 1)
+	s.EnsureTap(ctx(), 2)
+
+	// Assign keg to tap 1.
+	if err := s.SetTapKeg(ctx(), 1, keg.ID); err != nil {
+		t.Fatalf("SetTapKeg tap 1: %v", err)
+	}
+
+	// Assign same keg to tap 2 — should silently clear it from tap 1.
+	if err := s.SetTapKeg(ctx(), 2, keg.ID); err != nil {
+		t.Fatalf("SetTapKeg tap 2: %v", err)
+	}
+
+	tap1, _ := s.GetTap(ctx(), 1)
+	if tap1.KegID != nil {
+		t.Errorf("tap 1 should have no keg after reassignment, got keg_id=%d", *tap1.KegID)
+	}
+	tap2, _ := s.GetTap(ctx(), 2)
+	if tap2.KegID == nil || *tap2.KegID != keg.ID {
+		t.Errorf("tap 2 should have keg %d, got %v", keg.ID, tap2.KegID)
+	}
+}
+
 func TestSQLiteStore_EnsureTap_Idempotent(t *testing.T) {
 	s := newTestStore(t)
 	if err := s.EnsureTap(ctx(), 1); err != nil {
@@ -342,5 +368,57 @@ func TestSQLiteStore_DeletePour(t *testing.T) {
 	pours, _ := s.ListPours(ctx(), 10, 0)
 	if len(pours) != 0 {
 		t.Errorf("want 0 pours after delete, got %d", len(pours))
+	}
+}
+
+// --- Settings ---
+
+func TestSQLiteStore_Setting_SetAndGet(t *testing.T) {
+	s := newTestStore(t)
+	if err := s.SetSetting(ctx(), "banner", "Cheers!"); err != nil {
+		t.Fatalf("SetSetting: %v", err)
+	}
+	got, err := s.GetSetting(ctx(), "banner")
+	if err != nil {
+		t.Fatalf("GetSetting: %v", err)
+	}
+	if got != "Cheers!" {
+		t.Errorf("want Cheers!, got %q", got)
+	}
+}
+
+func TestSQLiteStore_Setting_Upsert(t *testing.T) {
+	s := newTestStore(t)
+	s.SetSetting(ctx(), "banner", "First")
+	s.SetSetting(ctx(), "banner", "Second")
+	got, _ := s.GetSetting(ctx(), "banner")
+	if got != "Second" {
+		t.Errorf("want Second after upsert, got %q", got)
+	}
+}
+
+func TestSQLiteStore_Setting_GetNotFound(t *testing.T) {
+	s := newTestStore(t)
+	if _, err := s.GetSetting(ctx(), "missing"); err == nil {
+		t.Error("expected error for missing setting, got nil")
+	}
+}
+
+func TestSQLiteStore_Setting_Delete(t *testing.T) {
+	s := newTestStore(t)
+	s.SetSetting(ctx(), "banner", "To be removed")
+	if err := s.DeleteSetting(ctx(), "banner"); err != nil {
+		t.Fatalf("DeleteSetting: %v", err)
+	}
+	if _, err := s.GetSetting(ctx(), "banner"); err == nil {
+		t.Error("expected error after delete, got nil")
+	}
+}
+
+func TestSQLiteStore_Setting_DeleteNonExistent(t *testing.T) {
+	s := newTestStore(t)
+	// Deleting a key that doesn't exist should not error.
+	if err := s.DeleteSetting(ctx(), "ghost"); err != nil {
+		t.Errorf("unexpected error deleting non-existent key: %v", err)
 	}
 }

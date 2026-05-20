@@ -1,0 +1,4 @@
+*.db
+kegerator-server
+kegerator-agent
+.DS_Store
