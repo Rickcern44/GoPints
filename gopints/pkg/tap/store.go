@@ -30,4 +30,9 @@ type Store interface {
 	ListPours(ctx context.Context, limit, offset int) ([]Pour, error)
 	ListPoursByTap(ctx context.Context, tapID uint8, limit, offset int) ([]Pour, error)
 	DeletePour(ctx context.Context, id int64) error
+
+	// Settings operations (key-value store for server-side configuration)
+	GetSetting(ctx context.Context, key string) (string, error)
+	SetSetting(ctx context.Context, key, value string) error
+	DeleteSetting(ctx context.Context, key string) error
 }

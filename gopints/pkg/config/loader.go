@@ -8,12 +8,12 @@ import (
 	"time"
 )
 
-// Default returns a config suitable for local development (simulate mode, one tap).
+// Default returns a production-safe config. Pass --simulate explicitly for local development.
 func Default() *AppConfig {
 	return &AppConfig{
 		Agent: AgentConfig{
 			ServerUDP: "localhost:9876",
-			Simulate:  true,
+			Simulate:  false,
 			Taps: []TapConfig{
 				{
 					ID:       1,
@@ -29,7 +29,7 @@ func Default() *AppConfig {
 			HTTPAddr:       ":8080",
 			DBPath:         "kegerator.db",
 			PulsesPerLiter: 450,
-			Simulate:       true,
+			Simulate:       false,
 		},
 	}
 }
