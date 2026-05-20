@@ -19,7 +19,7 @@ const maxImageBytes = 10 << 20 // 10 MB
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v)
+	_ = json.NewEncoder(w).Encode(v)
 }
 
 func writeError(w http.ResponseWriter, status int, msg string) {
@@ -28,7 +28,7 @@ func writeError(w http.ResponseWriter, status int, msg string) {
 
 // --- Health ---
 
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleHealth(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{
 		"status":  "ok",
 		"version": s.version,
@@ -278,7 +278,7 @@ func (s *Server) handleGetKegImage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", mimeType)
 	w.Header().Set("Cache-Control", "max-age=3600")
 	w.WriteHeader(http.StatusOK)
-	w.Write(data)
+	_, _ = w.Write(data)
 }
 
 func (s *Server) handleDeleteKegImage(w http.ResponseWriter, r *http.Request) {

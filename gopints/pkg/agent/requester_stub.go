@@ -9,7 +9,7 @@ import (
 
 type stubRequester struct{}
 
-func (r *stubRequester) RequestLine(chip string, offset int, edge Edge, debounce time.Duration, handler func(LineEvent)) (Line, error) {
+func (r *stubRequester) RequestLine(_ string, _ int, _ Edge, _ time.Duration, _ func(LineEvent)) (Line, error) {
 	return nil, errors.New("gpiocdev is only supported on linux")
 }
 

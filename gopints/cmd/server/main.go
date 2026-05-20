@@ -79,7 +79,9 @@ func main() {
 
 	shutCtx, shutCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutCancel()
-	srv.Shutdown(shutCtx)
+	if err := srv.Shutdown(shutCtx); err != nil {
+		slog.Error("server shutdown", "err", err)
+	}
 }
 
 // receiveLoop reads UDP datagrams and routes each pulse to the correct FlowMeter.

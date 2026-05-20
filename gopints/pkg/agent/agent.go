@@ -43,7 +43,7 @@ func NewObserver(chipName string, pin int, handler PulseHandler, opts ...Option)
 }
 
 func (o *Observer) Listen(ctx context.Context) error {
-	handler := func(evt LineEvent) {
+	handler := func(_ LineEvent) {
 		o.handler.HandlePulse()
 	}
 

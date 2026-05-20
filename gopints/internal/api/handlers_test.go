@@ -291,8 +291,8 @@ func TestHandleListTaps_StoreError(t *testing.T) {
 func TestHandleGetTap_Found(t *testing.T) {
 	kegID := int64(7)
 	store := &mockStore{
-		getTapFn: func(_ context.Context, id uint8) (tap.Tap, error) {
-			return tap.Tap{ID: id, KegID: &kegID}, nil
+		getTapFn: func(_ context.Context, _ uint8) (tap.Tap, error) {
+			return tap.Tap{ID: 1, KegID: &kegID}, nil
 		},
 	}
 	ts := newTestServer(t, store, false)
@@ -304,7 +304,7 @@ func TestHandleGetTap_Found(t *testing.T) {
 
 func TestHandleGetTap_NotFound(t *testing.T) {
 	store := &mockStore{
-		getTapFn: func(_ context.Context, id uint8) (tap.Tap, error) {
+		getTapFn: func(_ context.Context, _ uint8) (tap.Tap, error) {
 			return tap.Tap{}, fmt.Errorf("not found")
 		},
 	}
@@ -328,7 +328,7 @@ func TestHandleGetTap_BadID(t *testing.T) {
 func TestHandleSetTapKeg(t *testing.T) {
 	called := false
 	store := &mockStore{
-		setTapKegFn: func(_ context.Context, tapID uint8, kegID int64) error {
+		setTapKegFn: func(_ context.Context, _ uint8, _ int64) error {
 			called = true
 			return nil
 		},
@@ -358,7 +358,7 @@ func TestHandleSetTapKeg_BadBody(t *testing.T) {
 
 func TestHandleRemoveTapKeg(t *testing.T) {
 	store := &mockStore{
-		removeTapKegFn: func(_ context.Context, tapID uint8) error { return nil },
+		removeTapKegFn: func(_ context.Context, _ uint8) error { return nil },
 	}
 	ts := newTestServer(t, store, false)
 	resp := doAuthed(t, ts, "DELETE", "/api/taps/1/keg", nil)
@@ -417,8 +417,8 @@ func TestHandleCreateKeg(t *testing.T) {
 
 func TestHandleGetKeg(t *testing.T) {
 	store := &mockStore{
-		getKegFn: func(_ context.Context, id int64) (tap.Keg, error) {
-			return tap.Keg{ID: id, BeerName: "Stout"}, nil
+		getKegFn: func(_ context.Context, _ int64) (tap.Keg, error) {
+			return tap.Keg{ID: 3, BeerName: "Stout"}, nil
 		},
 	}
 	ts := newTestServer(t, store, false)
@@ -430,7 +430,7 @@ func TestHandleGetKeg(t *testing.T) {
 
 func TestHandleGetKeg_NotFound(t *testing.T) {
 	store := &mockStore{
-		getKegFn: func(_ context.Context, id int64) (tap.Keg, error) {
+		getKegFn: func(_ context.Context, _ int64) (tap.Keg, error) {
 			return tap.Keg{}, fmt.Errorf("not found")
 		},
 	}
@@ -446,7 +446,7 @@ func TestHandleUpdateKeg_PartialPatch(t *testing.T) {
 	original := tap.Keg{ID: 1, BeerName: "Original", Style: "Lager", ABV: 4.0, CapacityMl: 19000}
 	var saved tap.Keg
 	store := &mockStore{
-		getKegFn: func(_ context.Context, id int64) (tap.Keg, error) { return original, nil },
+		getKegFn: func(_ context.Context, _ int64) (tap.Keg, error) { return original, nil },
 		updateKegFn: func(_ context.Context, keg tap.Keg) (tap.Keg, error) {
 			saved = keg
 			return keg, nil
@@ -472,7 +472,7 @@ func TestHandleUpdateKeg_PartialPatch(t *testing.T) {
 
 func TestHandleDeleteKeg(t *testing.T) {
 	store := &mockStore{
-		deleteKegFn: func(_ context.Context, id int64) error { return nil },
+		deleteKegFn: func(_ context.Context, _ int64) error { return nil },
 	}
 	ts := newTestServer(t, store, false)
 	resp := doAuthed(t, ts, "DELETE", "/api/kegs/1", nil)
@@ -504,7 +504,7 @@ func TestHandleGetKegStats(t *testing.T) {
 
 func TestHandleSetKegImage_OK(t *testing.T) {
 	store := &mockStore{
-		setKegImageFn: func(_ context.Context, id int64, data []byte, mimeType string) error {
+		setKegImageFn: func(_ context.Context, _ int64, _ []byte, _ string) error {
 			return nil
 		},
 	}
@@ -548,7 +548,7 @@ func TestHandleSetKegImage_TooLarge(t *testing.T) {
 func TestHandleGetKegImage_OK(t *testing.T) {
 	imageData := []byte{0xFF, 0xD8}
 	store := &mockStore{
-		getKegImageFn: func(_ context.Context, id int64) ([]byte, string, error) {
+		getKegImageFn: func(_ context.Context, _ int64) ([]byte, string, error) {
 			return imageData, "image/jpeg", nil
 		},
 	}
@@ -565,7 +565,7 @@ func TestHandleGetKegImage_OK(t *testing.T) {
 
 func TestHandleGetKegImage_NotFound(t *testing.T) {
 	store := &mockStore{
-		getKegImageFn: func(_ context.Context, id int64) ([]byte, string, error) {
+		getKegImageFn: func(_ context.Context, _ int64) ([]byte, string, error) {
 			return nil, "", fmt.Errorf("no image")
 		},
 	}
@@ -579,7 +579,7 @@ func TestHandleGetKegImage_NotFound(t *testing.T) {
 
 func TestHandleDeleteKegImage(t *testing.T) {
 	store := &mockStore{
-		deleteKegImageFn: func(_ context.Context, id int64) error { return nil },
+		deleteKegImageFn: func(_ context.Context, _ int64) error { return nil },
 	}
 	ts := newTestServer(t, store, false)
 	resp := doAuthed(t, ts, "DELETE", "/api/kegs/1/image", nil)
@@ -593,7 +593,7 @@ func TestHandleDeleteKegImage(t *testing.T) {
 
 func TestHandleListPours_All(t *testing.T) {
 	store := &mockStore{
-		listPoursFn: func(_ context.Context, limit, offset int) ([]tap.Pour, error) {
+		listPoursFn: func(_ context.Context, _, _ int) ([]tap.Pour, error) {
 			return []tap.Pour{{ID: 1, VolumeMl: 400}}, nil
 		},
 	}
@@ -612,7 +612,7 @@ func TestHandleListPours_All(t *testing.T) {
 func TestHandleListPours_ByTap(t *testing.T) {
 	var calledWith uint8
 	store := &mockStore{
-		listPoursByTapFn: func(_ context.Context, tapID uint8, limit, offset int) ([]tap.Pour, error) {
+		listPoursByTapFn: func(_ context.Context, tapID uint8, _, _ int) ([]tap.Pour, error) {
 			calledWith = tapID
 			return []tap.Pour{}, nil
 		},
@@ -630,7 +630,7 @@ func TestHandleListPours_ByTap(t *testing.T) {
 
 func TestHandleDeletePour(t *testing.T) {
 	store := &mockStore{
-		deletePourFn: func(_ context.Context, id int64) error { return nil },
+		deletePourFn: func(_ context.Context, _ int64) error { return nil },
 	}
 	ts := newTestServer(t, store, false)
 	resp := doAuthed(t, ts, "DELETE", "/api/pours/5", nil)
@@ -654,16 +654,9 @@ func TestHandleSimulatePour_Forbidden_WhenNotSimulate(t *testing.T) {
 
 // --- Admin auth ---
 
-func authedDo(t *testing.T, ts *httptest.Server, method, path string, body any) *http.Response {
-	t.Helper()
-	// Set up a server with a known session token for auth tests.
-	// For handler tests, we use a pre-seeded token via the server's sessions field.
-	return do(t, ts, method, path, body)
-}
-
 func TestHandleAdminStatus_NoPassword(t *testing.T) {
 	store := &mockStore{
-		getSettingFn: func(_ context.Context, key string) (string, error) {
+		getSettingFn: func(_ context.Context, _ string) (string, error) {
 			return "", fmt.Errorf("not found")
 		},
 	}
@@ -681,7 +674,7 @@ func TestHandleAdminStatus_NoPassword(t *testing.T) {
 
 func TestHandleAdminStatus_PasswordSet(t *testing.T) {
 	store := &mockStore{
-		getSettingFn: func(_ context.Context, key string) (string, error) {
+		getSettingFn: func(_ context.Context, _ string) (string, error) {
 			return "$2a$10$hash", nil
 		},
 	}
@@ -696,7 +689,7 @@ func TestHandleAdminStatus_PasswordSet(t *testing.T) {
 
 func TestHandleAdminSetup_AlreadySet(t *testing.T) {
 	store := &mockStore{
-		getSettingFn: func(_ context.Context, key string) (string, error) {
+		getSettingFn: func(_ context.Context, _ string) (string, error) {
 			return "hash", nil // password already exists
 		},
 	}
@@ -710,7 +703,7 @@ func TestHandleAdminSetup_AlreadySet(t *testing.T) {
 
 func TestHandleAdminLogin_WrongPassword(t *testing.T) {
 	store := &mockStore{
-		getSettingFn: func(_ context.Context, key string) (string, error) {
+		getSettingFn: func(_ context.Context, _ string) (string, error) {
 			// bcrypt hash of "correct"
 			return "$2a$10$invalid", nil
 		},
@@ -725,7 +718,7 @@ func TestHandleAdminLogin_WrongPassword(t *testing.T) {
 
 func TestHandleAdminLogin_NoPassword(t *testing.T) {
 	store := &mockStore{
-		getSettingFn: func(_ context.Context, key string) (string, error) {
+		getSettingFn: func(_ context.Context, _ string) (string, error) {
 			return "", fmt.Errorf("not found")
 		},
 	}
@@ -739,7 +732,7 @@ func TestHandleAdminLogin_NoPassword(t *testing.T) {
 
 func TestRequireAuth_Rejects_Missing_Token(t *testing.T) {
 	store := &mockStore{
-		deleteKegFn: func(_ context.Context, id int64) error { return nil },
+		deleteKegFn: func(_ context.Context, _ int64) error { return nil },
 	}
 	ts := newTestServer(t, store, false)
 	resp := do(t, ts, "DELETE", "/api/kegs/1", nil) // no auth header
@@ -753,7 +746,7 @@ func TestRequireAuth_Rejects_Missing_Token(t *testing.T) {
 
 func TestHandleGetBanner_OK(t *testing.T) {
 	store := &mockStore{
-		getSettingFn: func(_ context.Context, key string) (string, error) {
+		getSettingFn: func(_ context.Context, _ string) (string, error) {
 			return "Tap 2 offline for cleaning", nil
 		},
 	}
@@ -771,7 +764,7 @@ func TestHandleGetBanner_OK(t *testing.T) {
 
 func TestHandleGetBanner_NotFound(t *testing.T) {
 	store := &mockStore{
-		getSettingFn: func(_ context.Context, key string) (string, error) {
+		getSettingFn: func(_ context.Context, _ string) (string, error) {
 			return "", fmt.Errorf("not found")
 		},
 	}
@@ -829,7 +822,7 @@ func TestHandleSetBanner_BadBody(t *testing.T) {
 func TestHandleDeleteBanner(t *testing.T) {
 	called := false
 	store := &mockStore{
-		deleteSettingFn: func(_ context.Context, key string) error {
+		deleteSettingFn: func(_ context.Context, _ string) error {
 			called = true
 			return nil
 		},

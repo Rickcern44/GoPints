@@ -36,8 +36,12 @@ func TestSQLiteStore_Migration(t *testing.T) {
 func TestSQLiteStore_SetTapKeg_OneKegPerTap(t *testing.T) {
 	s := newTestStore(t)
 	keg, _ := s.CreateKeg(ctx(), tap.Keg{BeerName: "IPA", CapacityMl: 19000})
-	s.EnsureTap(ctx(), 1)
-	s.EnsureTap(ctx(), 2)
+	if err := s.EnsureTap(ctx(), 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.EnsureTap(ctx(), 2); err != nil {
+		t.Fatal(err)
+	}
 
 	// Assign keg to tap 1.
 	if err := s.SetTapKeg(ctx(), 1, keg.ID); err != nil {
@@ -79,7 +83,9 @@ func TestSQLiteStore_GetTap_NotFound(t *testing.T) {
 func TestSQLiteStore_SetTapKeg_And_Get(t *testing.T) {
 	s := newTestStore(t)
 	keg, _ := s.CreateKeg(ctx(), tap.Keg{BeerName: "Test IPA", CapacityMl: 19000})
-	s.EnsureTap(ctx(), 1)
+	if err := s.EnsureTap(ctx(), 1); err != nil {
+		t.Fatal(err)
+	}
 
 	if err := s.SetTapKeg(ctx(), 1, keg.ID); err != nil {
 		t.Fatalf("SetTapKeg: %v", err)
@@ -99,8 +105,12 @@ func TestSQLiteStore_SetTapKeg_And_Get(t *testing.T) {
 func TestSQLiteStore_RemoveTapKeg(t *testing.T) {
 	s := newTestStore(t)
 	keg, _ := s.CreateKeg(ctx(), tap.Keg{BeerName: "Stout", CapacityMl: 19000})
-	s.EnsureTap(ctx(), 1)
-	s.SetTapKeg(ctx(), 1, keg.ID)
+	if err := s.EnsureTap(ctx(), 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetTapKeg(ctx(), 1, keg.ID); err != nil {
+		t.Fatal(err)
+	}
 
 	if err := s.RemoveTapKeg(ctx(), 1); err != nil {
 		t.Fatalf("RemoveTapKeg: %v", err)
@@ -113,8 +123,12 @@ func TestSQLiteStore_RemoveTapKeg(t *testing.T) {
 
 func TestSQLiteStore_ListTaps(t *testing.T) {
 	s := newTestStore(t)
-	s.EnsureTap(ctx(), 1)
-	s.EnsureTap(ctx(), 2)
+	if err := s.EnsureTap(ctx(), 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.EnsureTap(ctx(), 2); err != nil {
+		t.Fatal(err)
+	}
 
 	taps, err := s.ListTaps(ctx())
 	if err != nil {
@@ -195,9 +209,13 @@ func TestSQLiteStore_GetKeg_NotFound(t *testing.T) {
 
 func TestSQLiteStore_ListKegs_OrderedByDate(t *testing.T) {
 	s := newTestStore(t)
-	s.CreateKeg(ctx(), tap.Keg{BeerName: "First", CapacityMl: 19000})
+	if _, err := s.CreateKeg(ctx(), tap.Keg{BeerName: "First", CapacityMl: 19000}); err != nil {
+		t.Fatal(err)
+	}
 	time.Sleep(time.Millisecond) // ensure different timestamps
-	s.CreateKeg(ctx(), tap.Keg{BeerName: "Second", CapacityMl: 19000})
+	if _, err := s.CreateKeg(ctx(), tap.Keg{BeerName: "Second", CapacityMl: 19000}); err != nil {
+		t.Fatal(err)
+	}
 
 	kegs, err := s.ListKegs(ctx())
 	if err != nil {
@@ -217,12 +235,20 @@ func TestSQLiteStore_ListKegs_OrderedByDate(t *testing.T) {
 func TestSQLiteStore_GetKegStats_WithPours(t *testing.T) {
 	s := newTestStore(t)
 	keg, _ := s.CreateKeg(ctx(), tap.Keg{BeerName: "Lager", CapacityMl: 19000})
-	s.EnsureTap(ctx(), 1)
-	s.SetTapKeg(ctx(), 1, keg.ID)
+	if err := s.EnsureTap(ctx(), 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetTapKeg(ctx(), 1, keg.ID); err != nil {
+		t.Fatal(err)
+	}
 
 	now := time.Now()
-	s.RecordPour(ctx(), tap.Pour{TapID: 1, VolumeMl: 500, StartedAt: now, EndedAt: now.Add(10 * time.Second)})
-	s.RecordPour(ctx(), tap.Pour{TapID: 1, VolumeMl: 300, StartedAt: now.Add(time.Minute), EndedAt: now.Add(time.Minute + 5*time.Second)})
+	if _, err := s.RecordPour(ctx(), tap.Pour{TapID: 1, VolumeMl: 500, StartedAt: now, EndedAt: now.Add(10 * time.Second)}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.RecordPour(ctx(), tap.Pour{TapID: 1, VolumeMl: 300, StartedAt: now.Add(time.Minute), EndedAt: now.Add(time.Minute + 5*time.Second)}); err != nil {
+		t.Fatal(err)
+	}
 
 	stats, err := s.GetKegStats(ctx(), keg.ID)
 	if err != nil {
@@ -306,12 +332,20 @@ func TestSQLiteStore_GetKegImage_NoImage(t *testing.T) {
 
 func TestSQLiteStore_RecordAndListPours(t *testing.T) {
 	s := newTestStore(t)
-	s.EnsureTap(ctx(), 1)
-	s.EnsureTap(ctx(), 2)
+	if err := s.EnsureTap(ctx(), 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.EnsureTap(ctx(), 2); err != nil {
+		t.Fatal(err)
+	}
 
 	now := time.Now().UTC().Truncate(time.Second)
-	s.RecordPour(ctx(), tap.Pour{TapID: 1, VolumeMl: 400, StartedAt: now, EndedAt: now.Add(5 * time.Second)})
-	s.RecordPour(ctx(), tap.Pour{TapID: 2, VolumeMl: 600, StartedAt: now.Add(time.Minute), EndedAt: now.Add(time.Minute + 8*time.Second)})
+	if _, err := s.RecordPour(ctx(), tap.Pour{TapID: 1, VolumeMl: 400, StartedAt: now, EndedAt: now.Add(5 * time.Second)}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.RecordPour(ctx(), tap.Pour{TapID: 2, VolumeMl: 600, StartedAt: now.Add(time.Minute), EndedAt: now.Add(time.Minute + 8*time.Second)}); err != nil {
+		t.Fatal(err)
+	}
 
 	all, err := s.ListPours(ctx(), 10, 0)
 	if err != nil {
@@ -335,10 +369,14 @@ func TestSQLiteStore_RecordAndListPours(t *testing.T) {
 
 func TestSQLiteStore_ListPours_Pagination(t *testing.T) {
 	s := newTestStore(t)
-	s.EnsureTap(ctx(), 1)
+	if err := s.EnsureTap(ctx(), 1); err != nil {
+		t.Fatal(err)
+	}
 	now := time.Now().UTC()
 	for i := 0; i < 5; i++ {
-		s.RecordPour(ctx(), tap.Pour{TapID: 1, VolumeMl: float64(i * 100), StartedAt: now, EndedAt: now.Add(5 * time.Second)})
+		if _, err := s.RecordPour(ctx(), tap.Pour{TapID: 1, VolumeMl: float64(i * 100), StartedAt: now, EndedAt: now.Add(5 * time.Second)}); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	page1, _ := s.ListPours(ctx(), 2, 0)
@@ -358,7 +396,9 @@ func TestSQLiteStore_ListPours_Pagination(t *testing.T) {
 
 func TestSQLiteStore_DeletePour(t *testing.T) {
 	s := newTestStore(t)
-	s.EnsureTap(ctx(), 1)
+	if err := s.EnsureTap(ctx(), 1); err != nil {
+		t.Fatal(err)
+	}
 	now := time.Now().UTC()
 	pour, _ := s.RecordPour(ctx(), tap.Pour{TapID: 1, VolumeMl: 300, StartedAt: now, EndedAt: now.Add(5 * time.Second)})
 
@@ -389,8 +429,12 @@ func TestSQLiteStore_Setting_SetAndGet(t *testing.T) {
 
 func TestSQLiteStore_Setting_Upsert(t *testing.T) {
 	s := newTestStore(t)
-	s.SetSetting(ctx(), "banner", "First")
-	s.SetSetting(ctx(), "banner", "Second")
+	if err := s.SetSetting(ctx(), "banner", "First"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetSetting(ctx(), "banner", "Second"); err != nil {
+		t.Fatal(err)
+	}
 	got, _ := s.GetSetting(ctx(), "banner")
 	if got != "Second" {
 		t.Errorf("want Second after upsert, got %q", got)
@@ -406,7 +450,9 @@ func TestSQLiteStore_Setting_GetNotFound(t *testing.T) {
 
 func TestSQLiteStore_Setting_Delete(t *testing.T) {
 	s := newTestStore(t)
-	s.SetSetting(ctx(), "banner", "To be removed")
+	if err := s.SetSetting(ctx(), "banner", "To be removed"); err != nil {
+		t.Fatal(err)
+	}
 	if err := s.DeleteSetting(ctx(), "banner"); err != nil {
 		t.Fatalf("DeleteSetting: %v", err)
 	}

@@ -78,7 +78,9 @@ func TestFileLoader_MissingFile(t *testing.T) {
 
 func TestFileLoader_InvalidJSON(t *testing.T) {
 	f, _ := os.CreateTemp(t.TempDir(), "bad*.json")
-	f.WriteString("{not valid json}")
+	if _, err := f.WriteString("{not valid json}"); err != nil {
+		t.Fatal(err)
+	}
 	f.Close()
 
 	_, err := (&config.FileLoader{Path: f.Name()}).Load()

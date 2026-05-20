@@ -32,7 +32,7 @@ func runAgent(args []string) {
 	fs := flag.NewFlagSet("agent", flag.ExitOnError)
 	cfgPath := fs.String("config", "", "path to JSON config file")
 	autoPour := fs.Bool("auto-pour", false, "fire a test pour on startup (simulate mode only)")
-	fs.Parse(args)
+	_ = fs.Parse(args)
 
 	cfg, err := loadConfig(*cfgPath)
 	if err != nil {
@@ -124,7 +124,7 @@ func runSimulate(args []string) {
 		fmt.Fprintf(os.Stderr, "Usage: kegerator-agent simulate [flags]\n\n")
 		fs.PrintDefaults()
 	}
-	fs.Parse(args)
+	_ = fs.Parse(args)
 
 	cfg, err := loadConfig(*cfgPath)
 	if err != nil {

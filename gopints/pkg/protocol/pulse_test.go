@@ -54,7 +54,8 @@ func TestUnmarshal_UnknownType(t *testing.T) {
 }
 
 func TestMarshal_SizeIsConstant(t *testing.T) {
-	buf := PulseMessage{TapID: 1, Timestamp: 42}.Marshal()
+	raw := PulseMessage{TapID: 1, Timestamp: 42}.Marshal()
+	buf := raw[:]
 	if len(buf) != PulseMsgSize {
 		t.Errorf("want %d bytes, got %d", PulseMsgSize, len(buf))
 	}
