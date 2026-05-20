@@ -14,7 +14,8 @@ linters:
 linters-settings:
   errcheck:
     # Ignore errors from fmt.Fprintf and similar where the error is genuinely unactionable.
-    ignore: "fmt:.*"
+    exclude-functions:
+      - fmt:.*
   revive:
     rules:
       - name: exported
