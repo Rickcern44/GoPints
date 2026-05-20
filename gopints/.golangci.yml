@@ -10,19 +10,19 @@ linters:
     - unused
     - gosimple
     - ineffassign
-
-linters-settings:
-  errcheck:
-    # Ignore errors from fmt.Fprintf and similar where the error is genuinely unactionable.
-    exclude-functions:
-      - fmt:.*
-  revive:
-    rules:
-      - name: exported
-        disabled: true  # Don't require doc comments on every exported symbol
+  settings:
+    errcheck:
+      exclude-functions:
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - fmt.Fprint
+    revive:
+      rules:
+        - name: exported
+          disabled: true
 
 issues:
-  exclude-rules:
-    # Test files don't need error checks on t.Helper-style defers.
-    - path: "_test\\.go"
-      linters: [errcheck]
+  exclusions:
+    rules:
+      - path: "_test\\.go"
+        linters: [errcheck]
