@@ -1,0 +1,59 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: agent
+    binary: kegerator-agent
+    main: ./cmd/agent
+    goos:
+      - linux
+    goarch:
+      - arm64
+      - arm
+    goarm:
+      - "7"
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+  - id: server
+    binary: kegerator-server
+    main: ./cmd/server
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+archives:
+  - id: agent
+    builds:
+      - agent
+    name_template: "kegerator-agent_{{.Version}}_{{.Os}}_{{.Arch}}{{if .Arm}}v{{.Arm}}{{end}}"
+    format: tar.gz
+
+  - id: server
+    builds:
+      - server
+    name_template: "kegerator-server_{{.Version}}_{{.Os}}_{{.Arch}}"
+    format: tar.gz
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
