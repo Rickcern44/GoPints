@@ -24,7 +24,7 @@ func NewSimulatorRequester() *SimulatorRequester {
 
 // RequestLine registers the handler for the given chip/pin and returns a simLine.
 // The returned line's Close method is a no-op.
-func (r *SimulatorRequester) RequestLine(chip string, offset int, edge Edge, debounce time.Duration, handler func(LineEvent)) (Line, error) {
+func (r *SimulatorRequester) RequestLine(chip string, offset int, _ Edge, _ time.Duration, handler func(LineEvent)) (Line, error) {
 	key := lineKey(chip, offset)
 	r.mu.Lock()
 	r.handlers[key] = handler

@@ -11,13 +11,13 @@ type countingHandler struct {
 	count int
 }
 
-func (h *countingHandler) count_() int {
+func (h *countingHandler) getCount() int {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return h.count
 }
 
-func (h *countingHandler) handle(evt LineEvent) {
+func (h *countingHandler) handle(_ LineEvent) {
 	h.mu.Lock()
 	h.count++
 	h.mu.Unlock()
@@ -58,12 +58,12 @@ func TestSimulatorRequester_TriggerDeliversPulses(t *testing.T) {
 	// Wait long enough for all pulses to fire (10 pulses * 2ms = 20ms, give 5x margin).
 	time.Sleep(200 * time.Millisecond)
 
-	if got := h.count_(); got != want {
+	if got := h.getCount(); got != want {
 		t.Errorf("want %d pulses, got %d", want, got)
 	}
 }
 
-func TestSimulatorRequester_TriggerUnknownLine_NoOp(t *testing.T) {
+func TestSimulatorRequester_TriggerUnknownLine_NoOp(_ *testing.T) {
 	sim := NewSimulatorRequester()
 	// Should not panic when no handler is registered.
 	sim.Trigger("gpiochip0", 99, 100, 5)
@@ -80,7 +80,7 @@ func TestSimulatorRequester_CloseRemovesHandler(t *testing.T) {
 	sim.Trigger("gpiochip0", 17, 500, 10)
 	time.Sleep(100 * time.Millisecond)
 
-	if got := h.count_(); got != 0 {
+	if got := h.getCount(); got != 0 {
 		t.Errorf("expected 0 pulses after Close, got %d", got)
 	}
 }
