@@ -24,7 +24,8 @@
 		{ href: '/admin/kegs', label: 'Kegs' },
 		{ href: '/admin/taps', label: 'Taps' },
 		{ href: '/admin/banner', label: 'Banner' },
-		{ href: '/admin/pours', label: 'Pour History' }
+		{ href: '/admin/pours', label: 'Pour History' },
+		{ href: '/admin/features', label: 'Features' }
 	];
 </script>
 

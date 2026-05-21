@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { adminFetch } from '$lib/admin.js';
 	import Spinner from '$lib/components/Spinner.svelte';
+	import { recordManualPour, fetchFeatures } from '$lib/api.js';
 	import type { Tap, Keg } from '$lib/api.js';
 
 	let taps = $state<Tap[]>([]);
@@ -18,7 +19,22 @@
 
 	let deleting = $state<Record<number, boolean>>({});
 
-	onMount(loadAll);
+	const POUR_PRESETS = [
+		{ label: '12 oz', ml: 12 * 29.5735 },
+		{ label: '16 oz', ml: 16 * 29.5735 },
+		{ label: '24 oz', ml: 24 * 29.5735 }
+	] as const;
+
+	let flowEnabled = $state(false);
+	let pourOpen = $state<Record<number, boolean>>({});
+	let pouring = $state<Record<number, boolean>>({});
+	let pourSuccess = $state<Record<number, boolean>>({});
+
+	onMount(async () => {
+		await loadAll();
+		const features = await fetchFeatures();
+		flowEnabled = features.flow_based_pour;
+	});
 
 	async function loadAll() {
 		loading = true;
@@ -98,6 +114,18 @@
 			deleting[id] = false;
 		}
 	}
+
+	async function logPour(tapId: number, ml: number) {
+		pourOpen[tapId] = false;
+		pouring[tapId] = true;
+		try {
+			await recordManualPour(tapId, ml);
+			pourSuccess[tapId] = true;
+			setTimeout(() => (pourSuccess[tapId] = false), 2500);
+		} finally {
+			pouring[tapId] = false;
+		}
+	}
 </script>
 
 <div class="max-w-2xl">
@@ -152,47 +180,88 @@
 	{:else}
 		<div class="space-y-3">
 			{#each taps as tap (tap.id)}
-				<div class="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-					<div class="min-w-[52px] text-center">
-						<div class="text-2xl font-black text-gray-800">#{tap.id}</div>
-						<div class="text-xs text-gray-400">tap</div>
-					</div>
+				<div class="rounded-xl border border-gray-200 bg-white shadow-sm">
+					<div class="flex items-center gap-4 p-4">
+						<div class="min-w-[52px] text-center">
+							<div class="text-2xl font-black text-gray-800">#{tap.id}</div>
+							<div class="text-xs text-gray-400">tap</div>
+						</div>
 
-					<div class="flex-1 min-w-0">
-						{#if tap.keg}
-							<div class="text-sm font-medium text-gray-900 truncate">{tap.keg.beer_name}</div>
-							<div class="text-xs text-gray-500">{tap.keg.brewery || ''} · {(tap.keg.capacity_ml / 1000).toFixed(1)}L</div>
-						{:else}
-							<div class="text-sm italic text-gray-400">No keg assigned</div>
-						{/if}
-					</div>
+						<div class="flex-1 min-w-0">
+							{#if tap.keg}
+								<div class="text-sm font-medium text-gray-900 truncate">{tap.keg.beer_name}</div>
+								<div class="text-xs text-gray-500">{tap.keg.brewery || ''} · {(tap.keg.capacity_ml / 1000).toFixed(1)}L</div>
+							{:else}
+								<div class="text-sm italic text-gray-400">No keg assigned</div>
+							{/if}
+						</div>
 
-					<div class="flex items-center gap-2 shrink-0">
-						<select
-							bind:value={selections[tap.id]}
-							class="rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
-						>
-							<option value="">— Remove keg —</option>
-							{#each kegs as keg (keg.id)}
-								<option value={String(keg.id)}>{keg.beer_name}</option>
-							{/each}
-						</select>
-						<button
-							onclick={() => assignKeg(tap.id)}
-							disabled={assigning[tap.id]}
-							class="btn btn-secondary flex items-center gap-1.5"
-						>
-							{#if assigning[tap.id]}<Spinner size={13} />{/if}
-							Apply
-						</button>
-						<button
-							onclick={() => deleteTap(tap.id)}
-							disabled={deleting[tap.id]}
-							class="btn btn-danger flex items-center gap-1.5"
-						>
-							{#if deleting[tap.id]}<Spinner size={13} />{/if}
-							Delete
-						</button>
+						<div class="flex items-center gap-2 shrink-0">
+							{#if !flowEnabled && tap.keg}
+								<div class="pour-wrap">
+									{#if pourOpen[tap.id]}
+										<button
+											class="pour-backdrop"
+											onclick={() => (pourOpen[tap.id] = false)}
+											aria-label="Close"
+											tabindex="-1"
+										></button>
+									{/if}
+									<div class="pour-trigger">
+										{#if pourOpen[tap.id]}
+											<div class="pour-flyout">
+												{#each POUR_PRESETS as preset}
+													<button
+														class="preset-btn"
+														disabled={pouring[tap.id]}
+														onclick={() => logPour(tap.id, preset.ml)}
+													>{preset.label}</button>
+												{/each}
+											</div>
+										{/if}
+										<button
+											class="btn btn-pour"
+											class:open={pourOpen[tap.id]}
+											disabled={pouring[tap.id]}
+											onclick={() => (pourOpen[tap.id] = !pourOpen[tap.id])}
+										>
+											{#if pouring[tap.id]}<Spinner size={13} />{/if}
+											{pouring[tap.id] ? 'Logging…' : 'Log Pour'}
+										</button>
+									</div>
+								</div>
+							{/if}
+
+							{#if pourSuccess[tap.id]}
+								<span class="text-xs font-medium text-green-600">Logged!</span>
+							{/if}
+
+							<select
+								bind:value={selections[tap.id]}
+								class="rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+							>
+								<option value="">— Remove keg —</option>
+								{#each kegs as keg (keg.id)}
+									<option value={String(keg.id)}>{keg.beer_name}</option>
+								{/each}
+							</select>
+							<button
+								onclick={() => assignKeg(tap.id)}
+								disabled={assigning[tap.id]}
+								class="btn btn-secondary flex items-center gap-1.5"
+							>
+								{#if assigning[tap.id]}<Spinner size={13} />{/if}
+								Apply
+							</button>
+							<button
+								onclick={() => deleteTap(tap.id)}
+								disabled={deleting[tap.id]}
+								class="btn btn-danger flex items-center gap-1.5"
+							>
+								{#if deleting[tap.id]}<Spinner size={13} />{/if}
+								Delete
+							</button>
+						</div>
 					</div>
 				</div>
 			{/each}
@@ -248,5 +317,75 @@
 	.btn-danger:not(:disabled):hover {
 		background: #fef2f2;
 		border-color: #fca5a5;
+	}
+
+	.btn-pour {
+		background: rgba(200, 130, 26, 0.1);
+		color: #92400e;
+		border: 1px solid rgba(200, 130, 26, 0.3);
+	}
+
+	.btn-pour:not(:disabled):hover,
+	.btn-pour.open {
+		background: rgba(200, 130, 26, 0.18);
+		border-color: rgba(200, 130, 26, 0.5);
+	}
+
+	/* Pour flyout */
+
+	.pour-wrap {
+		position: relative;
+	}
+
+	.pour-backdrop {
+		position: fixed;
+		inset: 0;
+		z-index: 10;
+		background: transparent;
+		border: none;
+		cursor: default;
+		padding: 0;
+	}
+
+	.pour-trigger {
+		position: relative;
+		z-index: 11;
+	}
+
+	.pour-flyout {
+		position: absolute;
+		bottom: calc(100% + 0.5rem);
+		right: 0;
+		display: flex;
+		gap: 0.3rem;
+		background: #fff;
+		border: 1px solid #e5e7eb;
+		border-radius: 10px;
+		padding: 0.4rem;
+		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+		white-space: nowrap;
+	}
+
+	.preset-btn {
+		padding: 0.45rem 0.75rem;
+		border-radius: 7px;
+		background: #f9fafb;
+		border: 1px solid #e5e7eb;
+		color: #374151;
+		font-size: 0.8125rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: background 0.12s, border-color 0.12s;
+	}
+
+	.preset-btn:not(:disabled):hover {
+		background: rgba(200, 130, 26, 0.08);
+		border-color: rgba(200, 130, 26, 0.35);
+		color: #92400e;
+	}
+
+	.preset-btn:disabled {
+		opacity: 0.45;
+		cursor: not-allowed;
 	}
 </style>
