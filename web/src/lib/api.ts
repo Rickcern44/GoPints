@@ -66,7 +66,7 @@ export const KEG_SIZES: KegSize[] = [
 	{ label: '1/4 Barrel — Pony Keg (7.75 gal / 29.3L)', ml: 29337 },
 	{ label: '1/6 Barrel — Torpedo Keg (5.2 gal / 19.5L)', ml: 19550 },
 	{ label: 'Cornelius / Corny Keg (5 gal / 18.9L)', ml: 18927 },
-	{ label: 'Mini Keg (1.3 gal / 5L)', ml: 5000 },
+	{ label: 'Mini Keg (1.3 gal / 5L)', ml: 5000 }
 ];
 
 export function kegSizeLabel(ml: number): string {
