@@ -4,15 +4,17 @@ import "time"
 
 // Keg represents a keg of beer installed in the kegerator.
 type Keg struct {
-	ID            int64     `json:"id"`
-	BeerName      string    `json:"beer_name"`
-	Style         string    `json:"style"`
-	ABV           float64   `json:"abv"`
-	Brewery       string    `json:"brewery"`
-	Notes         string    `json:"notes"`
-	CapacityMl    float64   `json:"capacity_ml"`
-	AddedAt       time.Time `json:"added_at"`
-	ImageMimeType string    `json:"image_mime_type"`
+	ID                   int64     `json:"id"`
+	BeerName             string    `json:"beer_name"`
+	Style                string    `json:"style"`
+	ABV                  float64   `json:"abv"`
+	Brewery              string    `json:"brewery"`
+	Notes                string    `json:"notes"`
+	CapacityMl           float64   `json:"capacity_ml"`
+	AddedAt              time.Time `json:"added_at"`
+	ImageMimeType        string    `json:"image_mime_type"`
+	ImageStyle           string    `json:"image_style"`
+	BreweryImageMimeType string    `json:"brewery_image_mime_type"`
 }
 
 // KegStats summarises pour activity for a keg.

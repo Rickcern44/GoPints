@@ -10,7 +10,7 @@ import (
 	_ "modernc.org/sqlite" // register the SQLite driver
 )
 
-const schemaVersion = 5
+const schemaVersion = 6
 
 // SQLiteStore implements Store using a local SQLite database.
 // Use ":memory:" as path for in-process testing.
@@ -49,9 +49,27 @@ func (s *SQLiteStore) EnsureTap(ctx context.Context, id uint8) error {
 	return nil
 }
 
+func (s *SQLiteStore) CreateTap(ctx context.Context, id uint8) error {
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO taps (id, keg_id) VALUES (?, NULL)`, id)
+	if err != nil {
+		return fmt.Errorf("tap: create tap %d: %w", id, err)
+	}
+	return nil
+}
+
+func (s *SQLiteStore) DeleteTap(ctx context.Context, id uint8) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM taps WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("tap: delete tap %d: %w", id, err)
+	}
+	return nil
+}
+
 const tapWithKegSelect = `
 	SELECT t.id, t.keg_id,
-	       k.id, k.beer_name, k.style, k.abv, k.brewery, k.notes, k.capacity_ml, k.added_at, k.image_mime_type
+	       k.id, k.beer_name, k.style, k.abv, k.brewery, k.notes, k.capacity_ml, k.added_at,
+	       k.image_mime_type, k.image_style, k.brewery_image_mime_type
 	FROM taps t
 	LEFT JOIN kegs k ON k.id = t.keg_id`
 
@@ -59,11 +77,12 @@ func scanTapWithKeg(row scanner) (Tap, error) {
 	var t Tap
 	var kegID sql.NullInt64
 	var kID, addedAt sql.NullInt64
-	var beerName, style, brewery, notes, imageMimeType sql.NullString
+	var beerName, style, brewery, notes, imageMimeType, imageStyle, breweryImageMimeType sql.NullString
 	var abv, capacityMl sql.NullFloat64
 	err := row.Scan(
 		&t.ID, &kegID,
-		&kID, &beerName, &style, &abv, &brewery, &notes, &capacityMl, &addedAt, &imageMimeType,
+		&kID, &beerName, &style, &abv, &brewery, &notes, &capacityMl, &addedAt,
+		&imageMimeType, &imageStyle, &breweryImageMimeType,
 	)
 	if err != nil {
 		return Tap{}, err
@@ -74,15 +93,17 @@ func scanTapWithKeg(row scanner) (Tap, error) {
 	}
 	if kID.Valid {
 		keg := Keg{
-			ID:            kID.Int64,
-			BeerName:      beerName.String,
-			Style:         style.String,
-			ABV:           abv.Float64,
-			Brewery:       brewery.String,
-			Notes:         notes.String,
-			CapacityMl:    capacityMl.Float64,
-			AddedAt:       time.UnixMilli(addedAt.Int64).UTC(),
-			ImageMimeType: imageMimeType.String,
+			ID:                   kID.Int64,
+			BeerName:             beerName.String,
+			Style:                style.String,
+			ABV:                  abv.Float64,
+			Brewery:              brewery.String,
+			Notes:                notes.String,
+			CapacityMl:           capacityMl.Float64,
+			AddedAt:              time.UnixMilli(addedAt.Int64).UTC(),
+			ImageMimeType:        imageMimeType.String,
+			ImageStyle:           imageStyle.String,
+			BreweryImageMimeType: breweryImageMimeType.String,
 		}
 		t.Keg = &keg
 	}
@@ -160,9 +181,9 @@ func (s *SQLiteStore) CreateKeg(ctx context.Context, keg Keg) (Keg, error) {
 
 func (s *SQLiteStore) UpdateKeg(ctx context.Context, keg Keg) (Keg, error) {
 	_, err := s.db.ExecContext(ctx,
-		`UPDATE kegs SET beer_name=?, style=?, abv=?, brewery=?, notes=?, capacity_ml=?
+		`UPDATE kegs SET beer_name=?, style=?, abv=?, brewery=?, notes=?, capacity_ml=?, image_style=?
 		 WHERE id=?`,
-		keg.BeerName, keg.Style, keg.ABV, keg.Brewery, keg.Notes, keg.CapacityMl, keg.ID)
+		keg.BeerName, keg.Style, keg.ABV, keg.Brewery, keg.Notes, keg.CapacityMl, keg.ImageStyle, keg.ID)
 	if err != nil {
 		return Keg{}, fmt.Errorf("tap: update keg %d: %w", keg.ID, err)
 	}
@@ -170,16 +191,24 @@ func (s *SQLiteStore) UpdateKeg(ctx context.Context, keg Keg) (Keg, error) {
 }
 
 func (s *SQLiteStore) DeleteKeg(ctx context.Context, id int64) error {
-	_, err := s.db.ExecContext(ctx, `DELETE FROM kegs WHERE id = ?`, id)
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("tap: delete keg %d: %w", id, err)
 	}
-	return nil
+	defer tx.Rollback() //nolint:errcheck
+	if _, err := tx.ExecContext(ctx, `UPDATE taps SET keg_id = NULL WHERE keg_id = ?`, id); err != nil {
+		return fmt.Errorf("tap: delete keg %d: unassign: %w", id, err)
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM kegs WHERE id = ?`, id); err != nil {
+		return fmt.Errorf("tap: delete keg %d: %w", id, err)
+	}
+	return tx.Commit()
 }
 
 func (s *SQLiteStore) ListKegs(ctx context.Context) ([]Keg, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, beer_name, style, abv, brewery, notes, capacity_ml, added_at, image_mime_type
+		`SELECT id, beer_name, style, abv, brewery, notes, capacity_ml, added_at,
+		        image_mime_type, image_style, brewery_image_mime_type
 		 FROM kegs ORDER BY added_at DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("tap: list kegs: %w", err)
@@ -199,7 +228,8 @@ func (s *SQLiteStore) ListKegs(ctx context.Context) ([]Keg, error) {
 
 func (s *SQLiteStore) GetKeg(ctx context.Context, id int64) (Keg, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, beer_name, style, abv, brewery, notes, capacity_ml, added_at, image_mime_type
+		`SELECT id, beer_name, style, abv, brewery, notes, capacity_ml, added_at,
+		        image_mime_type, image_style, brewery_image_mime_type
 		 FROM kegs WHERE id = ?`, id)
 	k, err := scanKeg(row)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -280,6 +310,42 @@ func (s *SQLiteStore) DeleteKegImage(ctx context.Context, id int64) error {
 		`UPDATE kegs SET image = NULL, image_mime_type = '' WHERE id = ?`, id)
 	if err != nil {
 		return fmt.Errorf("tap: delete keg %d image: %w", id, err)
+	}
+	return nil
+}
+
+// --- Brewery image ---
+
+func (s *SQLiteStore) SetBreweryImage(ctx context.Context, id int64, data []byte, mimeType string) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE kegs SET brewery_image = ?, brewery_image_mime_type = ? WHERE id = ?`,
+		data, mimeType, id)
+	if err != nil {
+		return fmt.Errorf("tap: set keg %d brewery image: %w", id, err)
+	}
+	return nil
+}
+
+func (s *SQLiteStore) GetBreweryImage(ctx context.Context, id int64) ([]byte, string, error) {
+	var data []byte
+	var mimeType string
+	err := s.db.QueryRowContext(ctx,
+		`SELECT brewery_image, brewery_image_mime_type FROM kegs WHERE id = ?`, id).
+		Scan(&data, &mimeType)
+	if err != nil {
+		return nil, "", fmt.Errorf("tap: get keg %d brewery image: %w", id, err)
+	}
+	if len(data) == 0 {
+		return nil, "", fmt.Errorf("tap: keg %d has no brewery image", id)
+	}
+	return data, mimeType, nil
+}
+
+func (s *SQLiteStore) DeleteBreweryImage(ctx context.Context, id int64) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE kegs SET brewery_image = NULL, brewery_image_mime_type = '' WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("tap: delete keg %d brewery image: %w", id, err)
 	}
 	return nil
 }
@@ -382,7 +448,7 @@ func scanKeg(s scanner) (Keg, error) {
 	var k Keg
 	var addedAt int64
 	err := s.Scan(&k.ID, &k.BeerName, &k.Style, &k.ABV, &k.Brewery, &k.Notes,
-		&k.CapacityMl, &addedAt, &k.ImageMimeType)
+		&k.CapacityMl, &addedAt, &k.ImageMimeType, &k.ImageStyle, &k.BreweryImageMimeType)
 	if err != nil {
 		return Keg{}, err
 	}
@@ -421,6 +487,11 @@ func migrate(db *sql.DB) error {
 	if v < 5 {
 		if err := applyMigration5(db); err != nil {
 			return fmt.Errorf("tap: migration 5: %w", err)
+		}
+	}
+	if v < 6 {
+		if err := applyMigration6(db); err != nil {
+			return fmt.Errorf("tap: migration 6: %w", err)
 		}
 	}
 
@@ -505,6 +576,20 @@ func applyMigration4(db *sql.DB) error {
 		);
 	`)
 	return err
+}
+
+func applyMigration6(db *sql.DB) error {
+	stmts := []string{
+		`ALTER TABLE kegs ADD COLUMN image_style             TEXT NOT NULL DEFAULT 'circle'`,
+		`ALTER TABLE kegs ADD COLUMN brewery_image           BLOB`,
+		`ALTER TABLE kegs ADD COLUMN brewery_image_mime_type TEXT NOT NULL DEFAULT ''`,
+	}
+	for _, stmt := range stmts {
+		if _, err := db.Exec(stmt); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func applyMigration2(db *sql.DB) error {

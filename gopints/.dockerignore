@@ -1,4 +1,7 @@
 *.db
+*.db-wal
+*.db-shm
+
 kegerator-server
 kegerator-agent
 .DS_Store

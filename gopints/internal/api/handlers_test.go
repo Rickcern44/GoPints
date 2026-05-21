@@ -18,27 +18,32 @@ import (
 // --- Mock Store ---
 
 type mockStore struct {
-	ensureTapFn      func(ctx context.Context, id uint8) error
-	listTapsFn       func(ctx context.Context) ([]tap.Tap, error)
-	getTapFn         func(ctx context.Context, id uint8) (tap.Tap, error)
-	setTapKegFn      func(ctx context.Context, tapID uint8, kegID int64) error
-	removeTapKegFn   func(ctx context.Context, tapID uint8) error
-	createKegFn      func(ctx context.Context, keg tap.Keg) (tap.Keg, error)
-	updateKegFn      func(ctx context.Context, keg tap.Keg) (tap.Keg, error)
-	deleteKegFn      func(ctx context.Context, id int64) error
-	listKegsFn       func(ctx context.Context) ([]tap.Keg, error)
-	getKegFn         func(ctx context.Context, id int64) (tap.Keg, error)
-	getKegStatsFn    func(ctx context.Context, id int64) (tap.KegStats, error)
-	setKegImageFn    func(ctx context.Context, id int64, data []byte, mimeType string) error
-	getKegImageFn    func(ctx context.Context, id int64) ([]byte, string, error)
-	deleteKegImageFn func(ctx context.Context, id int64) error
-	recordPourFn     func(ctx context.Context, pour tap.Pour) (tap.Pour, error)
-	listPoursFn      func(ctx context.Context, limit, offset int) ([]tap.Pour, error)
-	listPoursByTapFn func(ctx context.Context, tapID uint8, limit, offset int) ([]tap.Pour, error)
-	deletePourFn     func(ctx context.Context, id int64) error
-	getSettingFn     func(ctx context.Context, key string) (string, error)
-	setSettingFn     func(ctx context.Context, key, value string) error
-	deleteSettingFn  func(ctx context.Context, key string) error
+	ensureTapFn          func(ctx context.Context, id uint8) error
+	createTapFn          func(ctx context.Context, id uint8) error
+	deleteTapFn          func(ctx context.Context, id uint8) error
+	listTapsFn           func(ctx context.Context) ([]tap.Tap, error)
+	getTapFn             func(ctx context.Context, id uint8) (tap.Tap, error)
+	setTapKegFn          func(ctx context.Context, tapID uint8, kegID int64) error
+	removeTapKegFn       func(ctx context.Context, tapID uint8) error
+	createKegFn          func(ctx context.Context, keg tap.Keg) (tap.Keg, error)
+	updateKegFn          func(ctx context.Context, keg tap.Keg) (tap.Keg, error)
+	deleteKegFn          func(ctx context.Context, id int64) error
+	listKegsFn           func(ctx context.Context) ([]tap.Keg, error)
+	getKegFn             func(ctx context.Context, id int64) (tap.Keg, error)
+	getKegStatsFn        func(ctx context.Context, id int64) (tap.KegStats, error)
+	setKegImageFn        func(ctx context.Context, id int64, data []byte, mimeType string) error
+	getKegImageFn        func(ctx context.Context, id int64) ([]byte, string, error)
+	deleteKegImageFn     func(ctx context.Context, id int64) error
+	setBreweryImageFn    func(ctx context.Context, id int64, data []byte, mimeType string) error
+	getBreweryImageFn    func(ctx context.Context, id int64) ([]byte, string, error)
+	deleteBreweryImageFn func(ctx context.Context, id int64) error
+	recordPourFn         func(ctx context.Context, pour tap.Pour) (tap.Pour, error)
+	listPoursFn          func(ctx context.Context, limit, offset int) ([]tap.Pour, error)
+	listPoursByTapFn     func(ctx context.Context, tapID uint8, limit, offset int) ([]tap.Pour, error)
+	deletePourFn         func(ctx context.Context, id int64) error
+	getSettingFn         func(ctx context.Context, key string) (string, error)
+	setSettingFn         func(ctx context.Context, key, value string) error
+	deleteSettingFn      func(ctx context.Context, key string) error
 }
 
 func (m *mockStore) EnsureTap(ctx context.Context, id uint8) error {
@@ -46,6 +51,18 @@ func (m *mockStore) EnsureTap(ctx context.Context, id uint8) error {
 		panic("unexpected call to EnsureTap")
 	}
 	return m.ensureTapFn(ctx, id)
+}
+func (m *mockStore) CreateTap(ctx context.Context, id uint8) error {
+	if m.createTapFn == nil {
+		panic("unexpected call to CreateTap")
+	}
+	return m.createTapFn(ctx, id)
+}
+func (m *mockStore) DeleteTap(ctx context.Context, id uint8) error {
+	if m.deleteTapFn == nil {
+		panic("unexpected call to DeleteTap")
+	}
+	return m.deleteTapFn(ctx, id)
 }
 func (m *mockStore) ListTaps(ctx context.Context) ([]tap.Tap, error) {
 	if m.listTapsFn == nil {
@@ -124,6 +141,24 @@ func (m *mockStore) DeleteKegImage(ctx context.Context, id int64) error {
 		panic("unexpected call to DeleteKegImage")
 	}
 	return m.deleteKegImageFn(ctx, id)
+}
+func (m *mockStore) SetBreweryImage(ctx context.Context, id int64, data []byte, mimeType string) error {
+	if m.setBreweryImageFn == nil {
+		panic("unexpected call to SetBreweryImage")
+	}
+	return m.setBreweryImageFn(ctx, id, data, mimeType)
+}
+func (m *mockStore) GetBreweryImage(ctx context.Context, id int64) ([]byte, string, error) {
+	if m.getBreweryImageFn == nil {
+		panic("unexpected call to GetBreweryImage")
+	}
+	return m.getBreweryImageFn(ctx, id)
+}
+func (m *mockStore) DeleteBreweryImage(ctx context.Context, id int64) error {
+	if m.deleteBreweryImageFn == nil {
+		panic("unexpected call to DeleteBreweryImage")
+	}
+	return m.deleteBreweryImageFn(ctx, id)
 }
 func (m *mockStore) RecordPour(ctx context.Context, pour tap.Pour) (tap.Pour, error) {
 	if m.recordPourFn == nil {
