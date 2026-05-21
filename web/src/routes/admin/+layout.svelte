@@ -6,7 +6,8 @@
 	let { children } = $props();
 
 	let isLogin = $derived(page.url.pathname === '/admin/login');
-	let token = $state(getToken());
+	// Re-read on every navigation so a fresh login is reflected immediately.
+	let token = $derived(page.url.pathname ? getToken() : null);
 
 	$effect(() => {
 		if (!token && !isLogin) {
@@ -24,7 +25,8 @@
 		{ href: '/admin/kegs', label: 'Kegs' },
 		{ href: '/admin/taps', label: 'Taps' },
 		{ href: '/admin/banner', label: 'Banner' },
-		{ href: '/admin/pours', label: 'Pour History' }
+		{ href: '/admin/pours', label: 'Pour History' },
+		{ href: '/admin/features', label: 'Features' }
 	];
 </script>
 

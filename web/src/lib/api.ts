@@ -73,6 +73,36 @@ export function kegSizeLabel(ml: number): string {
 	return KEG_SIZES.find((s) => s.ml === ml)?.label ?? `Custom (${(ml / 1000).toFixed(1)}L)`;
 }
 
+export interface Features {
+	flow_based_pour: boolean;
+}
+
+export async function fetchFeatures(): Promise<Features> {
+	const res = await fetch('/api/features');
+	if (!res.ok) return { flow_based_pour: false };
+	return res.json();
+}
+
+export async function setFeature(name: keyof Features, enabled: boolean): Promise<void> {
+	const token = localStorage.getItem('admin_token') ?? '';
+	const res = await fetch(`/api/features/${name}`, {
+		method: 'PUT',
+		headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+		body: JSON.stringify({ enabled })
+	});
+	if (!res.ok) throw new Error(`setFeature: ${res.status}`);
+}
+
+export async function recordManualPour(tapId: number, volumeMl: number): Promise<Pour> {
+	const res = await fetch(`/api/taps/${tapId}/pour`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ volume_ml: volumeMl })
+	});
+	if (!res.ok) throw new Error(`recordManualPour: ${res.status}`);
+	return res.json();
+}
+
 export async function fetchBanner(): Promise<string | null> {
 	const res = await fetch('/api/banner');
 	if (res.status === 404) return null;

@@ -873,6 +873,134 @@ func TestHandleDeleteBanner(t *testing.T) {
 	}
 }
 
+// --- Features ---
+
+func TestHandleListFeatures_Defaults(t *testing.T) {
+	store := &mockStore{
+		getSettingFn: func(_ context.Context, _ string) (string, error) {
+			return "", fmt.Errorf("not found")
+		},
+	}
+	ts := newTestServer(t, store, false)
+	resp := do(t, ts, "GET", "/api/features", nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("want 200, got %d", resp.StatusCode)
+	}
+	var features map[string]bool
+	decodeJSON(t, resp, &features)
+	if features["flow_based_pour"] != false {
+		t.Error("want flow_based_pour=false by default")
+	}
+}
+
+func TestHandleListFeatures_Enabled(t *testing.T) {
+	store := &mockStore{
+		getSettingFn: func(_ context.Context, key string) (string, error) {
+			if key == "feature.flow_based_pour" {
+				return "true", nil
+			}
+			return "", fmt.Errorf("not found")
+		},
+	}
+	ts := newTestServer(t, store, false)
+	resp := do(t, ts, "GET", "/api/features", nil)
+	var features map[string]bool
+	decodeJSON(t, resp, &features)
+	if !features["flow_based_pour"] {
+		t.Error("want flow_based_pour=true")
+	}
+}
+
+func TestHandleSetFeature_OK(t *testing.T) {
+	var gotKey, gotVal string
+	store := &mockStore{
+		setSettingFn: func(_ context.Context, key, value string) error {
+			gotKey, gotVal = key, value
+			return nil
+		},
+	}
+	ts := newTestServer(t, store, false)
+	resp := doAuthed(t, ts, "PUT", "/api/features/flow_based_pour", map[string]any{"enabled": true})
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent {
+		t.Errorf("want 204, got %d", resp.StatusCode)
+	}
+	if gotKey != "feature.flow_based_pour" {
+		t.Errorf("want key=feature.flow_based_pour, got %q", gotKey)
+	}
+	if gotVal != "true" {
+		t.Errorf("want value=true, got %q", gotVal)
+	}
+}
+
+func TestHandleSetFeature_UnknownName(t *testing.T) {
+	ts := newTestServer(t, &mockStore{}, false)
+	resp := doAuthed(t, ts, "PUT", "/api/features/nonexistent", map[string]any{"enabled": true})
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("want 404, got %d", resp.StatusCode)
+	}
+}
+
+func TestHandleSetFeature_RequiresAuth(t *testing.T) {
+	ts := newTestServer(t, &mockStore{}, false)
+	resp := do(t, ts, "PUT", "/api/features/flow_based_pour", map[string]any{"enabled": true})
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("want 401, got %d", resp.StatusCode)
+	}
+}
+
+// --- Manual pour ---
+
+func TestHandleManualPour_OK(t *testing.T) {
+	var recorded tap.Pour
+	store := &mockStore{
+		recordPourFn: func(_ context.Context, p tap.Pour) (tap.Pour, error) {
+			recorded = p
+			p.ID = 42
+			return p, nil
+		},
+	}
+	ts := newTestServer(t, store, false)
+	resp := do(t, ts, "POST", "/api/taps/1/pour", map[string]any{"volume_ml": 355.0})
+	if resp.StatusCode != http.StatusCreated {
+		t.Errorf("want 201, got %d", resp.StatusCode)
+	}
+	var pour tap.Pour
+	decodeJSON(t, resp, &pour)
+	if pour.ID != 42 {
+		t.Errorf("want id=42, got %d", pour.ID)
+	}
+	if recorded.TapID != 1 {
+		t.Errorf("want tap_id=1, got %d", recorded.TapID)
+	}
+	if recorded.VolumeMl != 355.0 {
+		t.Errorf("want volume_ml=355, got %f", recorded.VolumeMl)
+	}
+	if recorded.StartedAt.IsZero() || recorded.EndedAt.IsZero() {
+		t.Error("want non-zero timestamps")
+	}
+}
+
+func TestHandleManualPour_InvalidVolume(t *testing.T) {
+	ts := newTestServer(t, &mockStore{}, false)
+	resp := do(t, ts, "POST", "/api/taps/1/pour", map[string]any{"volume_ml": 0})
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("want 400, got %d", resp.StatusCode)
+	}
+}
+
+func TestHandleManualPour_BadTapID(t *testing.T) {
+	ts := newTestServer(t, &mockStore{}, false)
+	resp := do(t, ts, "POST", "/api/taps/notanumber/pour", map[string]any{"volume_ml": 100})
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("want 400, got %d", resp.StatusCode)
+	}
+}
+
 func TestHandleSimulatePour_Accepted_WhenSimulate(t *testing.T) {
 	meters := map[uint8]*flow.Meter{
 		1: flow.NewMeter(1, 450, 50, make(chan flow.PourEvent, 64)),

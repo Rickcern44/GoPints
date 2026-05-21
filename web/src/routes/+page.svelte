@@ -3,7 +3,7 @@
 	import { pourSocket } from '$lib/ws.svelte.js';
 	import KegCard from '$lib/components/KegCard.svelte';
 	import BannerStack from '$lib/components/BannerStack.svelte';
-	import { fetchKegStats } from '$lib/api.js';
+	import { fetchKegStats, fetchFeatures, recordManualPour } from '$lib/api.js';
 	import type { PageData } from './$types.js';
 	import type { KegStats, Tap } from '$lib/api.js';
 
@@ -17,10 +17,34 @@
 
 	let activeTaps = $derived((data.taps as Tap[]).filter((t) => t.keg));
 
+	const POUR_PRESETS = [
+		{ label: '12 oz', ml: 12 * 29.5735 },
+		{ label: '16 oz', ml: 16 * 29.5735 },
+		{ label: '24 oz', ml: 24 * 29.5735 }
+	] as const;
+
+	let flowEnabled = $state(false);
+	let pourOpen = $state<Record<number, boolean>>({});
+	let pouring = $state<Record<number, boolean>>({});
+	let pourDone = $state<Record<number, boolean>>({});
+
 	onMount(() => {
 		pourSocket.connect();
+		fetchFeatures().then((f) => (flowEnabled = f.flow_based_pour));
 		return () => pourSocket.disconnect();
 	});
+
+	async function logPour(tapId: number, ml: number) {
+		pourOpen[tapId] = false;
+		pouring[tapId] = true;
+		try {
+			await recordManualPour(tapId, ml);
+			pourDone[tapId] = true;
+			setTimeout(() => (pourDone[tapId] = false), 2500);
+		} finally {
+			pouring[tapId] = false;
+		}
+	}
 
 	$effect(() => {
 		const ended = pourSocket.lastEnded;
@@ -60,6 +84,51 @@
 			{#each activeTaps as tap (tap.id)}
 				<div class="carousel-slide">
 					<KegCard {tap} stats={stats[tap.keg!.id]} />
+
+					{#if !flowEnabled}
+						<div class="pour-anchor">
+							{#if pourDone[tap.id]}
+								<div class="pour-done">Pour logged!</div>
+							{:else}
+								{#if pourOpen[tap.id]}
+									<button
+										class="pour-backdrop"
+										onclick={() => (pourOpen[tap.id] = false)}
+										aria-label="Close"
+										tabindex="-1"
+									></button>
+								{/if}
+								<div class="pour-trigger-wrap">
+									{#if pourOpen[tap.id]}
+										<div class="pour-flyout">
+											{#each POUR_PRESETS as preset}
+												<button
+													class="preset-btn"
+													disabled={pouring[tap.id]}
+													onclick={() => logPour(tap.id, preset.ml)}
+												>{preset.label}</button>
+											{/each}
+										</div>
+									{/if}
+									<button
+										class="pour-fab"
+										class:open={pourOpen[tap.id]}
+										disabled={pouring[tap.id]}
+										onclick={() => (pourOpen[tap.id] = !pourOpen[tap.id])}
+									>
+										{#if !pouring[tap.id]}
+											<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+												<rect x="9" y="2" width="6" height="3" rx="1" fill="currentColor" />
+												<rect x="8" y="5" width="8" height="13" rx="1" fill="currentColor" opacity="0.85" />
+												<path d="M16 8h3a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-3" stroke="currentColor" stroke-width="1.5" fill="none" />
+											</svg>
+										{/if}
+										{pouring[tap.id] ? 'Logging…' : 'Log Pour'}
+									</button>
+								</div>
+							{/if}
+						</div>
+					{/if}
 				</div>
 			{/each}
 		</div>
@@ -138,6 +207,7 @@
 	}
 
 	.carousel-slide {
+		position: relative;
 		height: 100%;
 		width: 100vw;
 		flex-shrink: 0;
@@ -156,5 +226,113 @@
 
 	.admin-corner:hover {
 		color: rgba(255, 255, 255, 0.55);
+	}
+
+	/* Pour flyout */
+
+	.pour-anchor {
+		position: absolute;
+		bottom: 2rem;
+		left: 50%;
+		transform: translateX(-50%);
+	}
+
+	.pour-backdrop {
+		position: fixed;
+		inset: 0;
+		z-index: 10;
+		background: transparent;
+		border: none;
+		cursor: default;
+		padding: 0;
+	}
+
+	.pour-trigger-wrap {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		z-index: 11;
+	}
+
+	.pour-flyout {
+		position: absolute;
+		bottom: calc(100% + 0.625rem);
+		left: 50%;
+		transform: translateX(-50%);
+		display: flex;
+		gap: 0.375rem;
+		background: rgba(10, 8, 6, 0.93);
+		border: 1px solid rgba(200, 130, 26, 0.3);
+		border-radius: 12px;
+		padding: 0.5rem;
+		backdrop-filter: blur(20px);
+		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+		white-space: nowrap;
+	}
+
+	.preset-btn {
+		padding: 0.6rem 1rem;
+		border-radius: 8px;
+		background: rgba(200, 130, 26, 0.1);
+		border: 1px solid rgba(200, 130, 26, 0.2);
+		color: rgba(245, 234, 216, 0.85);
+		font-size: 0.9rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition:
+			background 0.15s,
+			border-color 0.15s,
+			transform 0.1s;
+		letter-spacing: 0.01em;
+	}
+
+	.preset-btn:not(:disabled):hover {
+		background: rgba(200, 130, 26, 0.22);
+		border-color: rgba(200, 130, 26, 0.5);
+		transform: translateY(-1px);
+	}
+
+	.preset-btn:disabled {
+		opacity: 0.45;
+		cursor: not-allowed;
+	}
+
+	.pour-fab {
+		display: flex;
+		align-items: center;
+		gap: 0.45rem;
+		padding: 0.6rem 1.25rem;
+		border-radius: 999px;
+		background: rgba(200, 130, 26, 0.15);
+		border: 1px solid rgba(200, 130, 26, 0.35);
+		color: rgba(200, 130, 26, 0.9);
+		font-size: 0.875rem;
+		font-weight: 600;
+		cursor: pointer;
+		backdrop-filter: blur(8px);
+		transition: background 0.2s, border-color 0.2s;
+	}
+
+	.pour-fab.open,
+	.pour-fab:not(:disabled):hover {
+		background: rgba(200, 130, 26, 0.25);
+		border-color: rgba(200, 130, 26, 0.6);
+	}
+
+	.pour-fab:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.pour-done {
+		padding: 0.6rem 1.25rem;
+		border-radius: 999px;
+		background: rgba(16, 185, 129, 0.15);
+		border: 1px solid rgba(16, 185, 129, 0.3);
+		color: rgba(16, 185, 129, 0.9);
+		font-size: 0.875rem;
+		font-weight: 600;
+		white-space: nowrap;
 	}
 </style>

@@ -76,6 +76,11 @@ func NewServer(addr string, store tap.Store, meters map[uint8]*flow.Meter, simul
 	// Pours
 	mux.HandleFunc("GET /api/pours", s.handleListPours)
 	mux.HandleFunc("DELETE /api/pours/{id}", s.requireAuth(s.handleDeletePour))
+	mux.HandleFunc("POST /api/taps/{id}/pour", s.handleManualPour)
+
+	// Features
+	mux.HandleFunc("GET /api/features", s.handleListFeatures)
+	mux.HandleFunc("PUT /api/features/{name}", s.requireAuth(s.handleSetFeature))
 
 	// Banner
 	mux.HandleFunc("GET /api/banner", s.handleGetBanner)
