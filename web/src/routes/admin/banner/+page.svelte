@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { adminFetch } from '$lib/admin.js';
+	import Spinner from '$lib/components/Spinner.svelte';
 
 	let current = $state<string | null>(null);
 	let message = $state('');
@@ -50,7 +51,7 @@
 	<h1 class="mb-6 text-2xl font-bold">Custom Banner</h1>
 
 	{#if loading}
-		<p class="text-gray-500">Loading…</p>
+		<div class="flex items-center gap-2 text-sm text-gray-500"><Spinner size={16} /> Loading…</div>
 	{:else}
 		{#if current}
 			<div class="mb-6 rounded-xl bg-indigo-600 px-5 py-4 text-white shadow-sm">
@@ -81,14 +82,15 @@
 				<button
 					onclick={setBanner}
 					disabled={saving || !message.trim()}
-					class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+					class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors duration-150 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-50"
 				>
+					{#if saving}<Spinner size={14} />{/if}
 					{saving ? 'Saving…' : current ? 'Update Banner' : 'Set Banner'}
 				</button>
 				{#if current}
 					<button
 						onclick={clearBanner}
-						class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+						class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition-colors duration-150 hover:bg-gray-100 active:bg-gray-200"
 					>
 						Clear Banner
 					</button>

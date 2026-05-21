@@ -12,7 +12,9 @@ type Keg struct {
 	Notes         string    `json:"notes"`
 	CapacityMl    float64   `json:"capacity_ml"`
 	AddedAt       time.Time `json:"added_at"`
-	ImageMimeType string    `json:"image_mime_type"`
+	ImageMimeType        string    `json:"image_mime_type"`
+	ImageStyle           string    `json:"image_style"`
+	BreweryImageMimeType string    `json:"brewery_image_mime_type"`
 }
 
 // KegStats summarises pour activity for a keg.

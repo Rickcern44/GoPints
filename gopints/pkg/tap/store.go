@@ -7,6 +7,8 @@ import "context"
 type Store interface {
 	// Tap operations
 	EnsureTap(ctx context.Context, id uint8) error
+	CreateTap(ctx context.Context, id uint8) error
+	DeleteTap(ctx context.Context, id uint8) error
 	ListTaps(ctx context.Context) ([]Tap, error)
 	GetTap(ctx context.Context, id uint8) (Tap, error)
 	SetTapKeg(ctx context.Context, tapID uint8, kegID int64) error
@@ -24,6 +26,11 @@ type Store interface {
 	SetKegImage(ctx context.Context, id int64, data []byte, mimeType string) error
 	GetKegImage(ctx context.Context, id int64) (data []byte, mimeType string, err error)
 	DeleteKegImage(ctx context.Context, id int64) error
+
+	// Brewery image operations
+	SetBreweryImage(ctx context.Context, id int64, data []byte, mimeType string) error
+	GetBreweryImage(ctx context.Context, id int64) (data []byte, mimeType string, err error)
+	DeleteBreweryImage(ctx context.Context, id int64) error
 
 	// Pour operations
 	RecordPour(ctx context.Context, pour Pour) (Pour, error)

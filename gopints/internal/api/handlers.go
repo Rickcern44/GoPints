@@ -93,6 +93,43 @@ func (s *Server) handleRemoveTapKeg(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (s *Server) handleCreateTap(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		ID uint8 `json:"id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.ID == 0 {
+		writeError(w, http.StatusBadRequest, "id must be 1–255")
+		return
+	}
+	if err := s.store.CreateTap(r.Context(), body.ID); err != nil {
+		if strings.Contains(err.Error(), "UNIQUE constraint") {
+			writeError(w, http.StatusConflict, "tap already exists")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	t, err := s.store.GetTap(r.Context(), body.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusCreated, t)
+}
+
+func (s *Server) handleDeleteTap(w http.ResponseWriter, r *http.Request) {
+	id, err := parseTapID(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid tap id")
+		return
+	}
+	if err := s.store.DeleteTap(r.Context(), id); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // --- Kegs ---
 
 func (s *Server) handleListKegs(w http.ResponseWriter, r *http.Request) {
@@ -167,6 +204,7 @@ func (s *Server) handleUpdateKeg(w http.ResponseWriter, r *http.Request) {
 		Brewery    *string  `json:"brewery"`
 		Notes      *string  `json:"notes"`
 		CapacityMl *float64 `json:"capacity_ml"`
+		ImageStyle *string  `json:"image_style"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid body")
@@ -190,6 +228,9 @@ func (s *Server) handleUpdateKeg(w http.ResponseWriter, r *http.Request) {
 	}
 	if patch.CapacityMl != nil {
 		existing.CapacityMl = *patch.CapacityMl
+	}
+	if patch.ImageStyle != nil {
+		existing.ImageStyle = *patch.ImageStyle
 	}
 
 	updated, err := s.store.UpdateKeg(r.Context(), existing)
@@ -288,6 +329,69 @@ func (s *Server) handleDeleteKegImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.store.DeleteKegImage(r.Context(), id); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// --- Brewery image ---
+
+func (s *Server) handleSetBreweryImage(w http.ResponseWriter, r *http.Request) {
+	id, err := parseKegID(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid keg id")
+		return
+	}
+	mimeType := r.Header.Get("Content-Type")
+	if mimeType == "" {
+		writeError(w, http.StatusBadRequest, "Content-Type header required")
+		return
+	}
+	data, err := io.ReadAll(io.LimitReader(r.Body, maxImageBytes+1))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to read image")
+		return
+	}
+	if len(data) > maxImageBytes {
+		writeError(w, http.StatusRequestEntityTooLarge, "image exceeds 10 MB limit")
+		return
+	}
+	if len(data) == 0 {
+		writeError(w, http.StatusBadRequest, "empty image body")
+		return
+	}
+	if err := s.store.SetBreweryImage(r.Context(), id, data, mimeType); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) handleGetBreweryImage(w http.ResponseWriter, r *http.Request) {
+	id, err := parseKegID(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid keg id")
+		return
+	}
+	data, mimeType, err := s.store.GetBreweryImage(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, err.Error())
+		return
+	}
+	w.Header().Set("Content-Type", mimeType)
+	w.Header().Set("Cache-Control", "max-age=3600")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(data)
+}
+
+func (s *Server) handleDeleteBreweryImage(w http.ResponseWriter, r *http.Request) {
+	id, err := parseKegID(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid keg id")
+		return
+	}
+	if err := s.store.DeleteBreweryImage(r.Context(), id); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

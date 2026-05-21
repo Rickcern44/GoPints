@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { adminFetch } from '$lib/admin.js';
+	import Spinner from '$lib/components/Spinner.svelte';
 	import type { Tap, Pour } from '$lib/api.js';
 
 	const PAGE_SIZE = 20;
@@ -73,7 +74,7 @@
 		</select>
 		<button
 			onclick={applyFilter}
-			class="rounded-lg bg-gray-800 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-700"
+			class="rounded-lg bg-gray-800 px-4 py-2 text-sm font-semibold text-white transition-colors duration-150 hover:bg-gray-700 active:bg-gray-600"
 		>
 			Filter
 		</button>
@@ -84,7 +85,7 @@
 	{/if}
 
 	{#if loading}
-		<p class="text-gray-500">Loading…</p>
+		<div class="flex items-center gap-2 text-sm text-gray-500"><Spinner size={16} /> Loading…</div>
 	{:else if pours.length === 0}
 		<p class="text-gray-500">No pours recorded yet.</p>
 	{:else}
@@ -121,14 +122,14 @@
 			<button
 				onclick={() => { offset = Math.max(0, offset - PAGE_SIZE); loadPours(); }}
 				disabled={offset === 0}
-				class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-40"
+				class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium transition-colors duration-150 hover:bg-gray-100 active:bg-gray-200 disabled:opacity-40"
 			>
 				← Previous
 			</button>
 			<button
 				onclick={() => { offset += PAGE_SIZE; loadPours(); }}
 				disabled={!hasMore}
-				class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-40"
+				class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium transition-colors duration-150 hover:bg-gray-100 active:bg-gray-200 disabled:opacity-40"
 			>
 				Next →
 			</button>
