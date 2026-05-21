@@ -1,6 +1,5 @@
 name: Publish
 
-# Fires when release-please merges a release PR and publishes the GitHub release.
 on:
   push:
     tags:
