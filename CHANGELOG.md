@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/Rickcern44/GoPints/compare/v0.2.0...v0.2.1) (2026-05-21)
+
+
+### Bug Fixes
+
+* updated release pipelines ([82c8325](https://github.com/Rickcern44/GoPints/commit/82c832579d4d41c15c5209640b2cfb21ef6c54a3))
+
 ## [0.2.0](https://github.com/Rickcern44/GoPints/compare/v0.1.0...v0.2.0) (2026-05-21)
 
 
