@@ -40,4 +40,4 @@ release:
   mode: append
 
 changelog:
-  use: github-native
+  disable: true
