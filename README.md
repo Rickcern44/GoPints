@@ -1,6 +1,115 @@
-# project-torrent
+# GoPints
 
-An open-source kegerator tap monitoring and management system. Tracks pours in real time using GPIO flow sensors on a Raspberry Pi, persists data in SQLite, and serves a REST + WebSocket API for a display frontend.
+An open-source kegerator tap monitoring and management system. A Raspberry Pi GPIO agent sends pulse data over UDP to a Go server, which persists pours to SQLite and streams events to a SvelteKit web interface.
+
+---
+
+## Overview
+
+```
+Raspberry Pi (GPIO flow sensor)
+  → gopints-agent  (UDP pulses)
+  → gopints-server (REST + WebSocket + SQLite)
+  → web UI         (live pour display + admin panel)
+```
+
+---
+
+## Deployment
+
+### Docker Compose (recommended)
+
+Pull the pre-built images from GHCR and start:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+Override the image tag to pin a specific release:
+
+```bash
+GOPINTS_TAG=v1.2.3 docker compose up -d
+```
+
+The server is available on port `8080` (internal) and the web UI on port `80`. Configure the server via environment variables in `docker-compose.yml`:
+
+| Variable | Default | Description |
+|---|---|---|
+| `KEGERATOR_DB_PATH` | `/app/data/kegerator.db` | SQLite database path |
+| `KEGERATOR_HTTP_ADDR` | `:8080` | HTTP listen address |
+| `KEGERATOR_UDP_ADDR` | `:9876` | UDP listen address for agent pulses |
+
+Database data is persisted in the `db_data` Docker volume.
+
+---
+
+### Agent (Raspberry Pi)
+
+The agent binary runs on the Pi and sends GPIO pulse events to the server over UDP.
+
+**Quick install:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/rickcern44/gopints/main/scripts/setup-agent.sh | sudo bash
+```
+
+The installer will:
+1. Detect your Pi's architecture (`arm64` / `armv7` / `amd64`)
+2. Download the correct binary from the latest GitHub Release
+3. Create a config template at `/etc/gopints/config.json`
+4. Register and start a `systemd` service (`gopints-agent`)
+
+**Install a specific version:**
+
+```bash
+sudo bash setup-agent.sh --version v1.2.3 --server 192.168.1.10:9876
+```
+
+**After install, edit the config:**
+
+```bash
+sudo nano /etc/gopints/config.json
+sudo systemctl restart gopints-agent
+```
+
+Config reference:
+
+```json
+{
+  "server_addr": "192.168.1.10:9876",
+  "taps": [
+    { "id": 1, "gpio_pin": 17 }
+  ],
+  "pulses_per_liter": 450,
+  "flow_timeout_ms": 2000
+}
+```
+
+**Useful commands:**
+
+```bash
+sudo systemctl status  gopints-agent      # check status
+sudo journalctl -u     gopints-agent -f   # stream logs
+sudo systemctl restart gopints-agent      # apply config changes
+```
+
+---
+
+## Local development
+
+```bash
+# Backend — simulate pours without GPIO hardware
+cd gopints
+go run ./cmd/server --simulate            # server on :8080, enables /api/dev/* endpoints
+
+# In a second terminal — fire synthetic pour events
+go run ./cmd/agent simulate --tap 1 --hz 10 --pulses 450 --interval 30s
+
+# Frontend
+cd web
+npm run dev                               # dev server on :5173, proxies /api → :8080
+```
 
 ---
 
@@ -8,152 +117,204 @@ An open-source kegerator tap monitoring and management system. Tracks pours in r
 
 ```
 project-torrent/
-├── gopints/          Go backend (agent + server binaries + shared packages)
-└── web/              SvelteKit display frontend
+├── gopints/                  Go backend
+│   ├── cmd/agent/            Pi GPIO agent binary
+│   ├── cmd/server/           REST + WebSocket server binary
+│   ├── internal/api/         HTTP handlers + WebSocket hub
+│   ├── internal/udp/         UDP sender/receiver
+│   ├── pkg/agent/            GPIO abstraction (real + simulator)
+│   ├── pkg/flow/             Pulse → volume metering, PourEvent emission
+│   ├── pkg/tap/              Store interface + SQLiteStore
+│   ├── pkg/protocol/         10-byte UDP wire format
+│   ├── pkg/config/           Config loader chain
+│   └── .goreleaser.yaml      Agent binary release config
+├── web/                      SvelteKit frontend
+│   ├── src/routes/           Pages (public display + admin panel)
+│   ├── src/lib/              API client, WebSocket store, components
+│   ├── Dockerfile            Multi-stage nginx build
+│   └── nginx.conf            Nginx config with /api proxy + WebSocket
+├── scripts/
+│   └── setup-agent.sh        Pi agent installer
+├── docker-compose.yml        Production compose file
+├── release-please-config.json
+└── .release-please-manifest.json
 ```
 
 ---
 
-## What's been built
+## API reference
 
-### `gopints/` — Go backend
+All endpoints are served by the Go server on `:8080`.
 
-#### Shared packages (externally distributable)
-| Package | Description |
-|---|---|
-| `pkg/agent` | GPIO abstraction — `Observer` reads pulse events via `LineRequester` interface; `SimulatorRequester` for hardware-free dev |
-| `pkg/flow` | Flow metering — `Meter` converts pulse counts to pour volume, emits `PourStarted` / `PourUpdated` / `PourEnded` events |
-| `pkg/tap` | Persistence — `Store` interface + `SQLiteStore` implementation; models for Tap, Keg, Pour, KegStats |
-| `pkg/protocol` | UDP wire format — 10-byte fixed message (type + tap ID + timestamp) |
-| `pkg/config` | Config loading — `Loader` interface with `FileLoader` (JSON), `EnvLoader` (env vars), `StaticLoader` (tests), `Default()` |
+### Taps
 
-#### Binaries
-| Binary | Description |
-|---|---|
-| `cmd/agent` | Runs on Pi — reads GPIO pulses, sends UDP datagrams to server. `simulate` subcommand fires synthetic pulses over UDP for development |
-| `cmd/server` | Runs anywhere — receives UDP, tracks pours, serves REST API + WebSocket, persists to SQLite |
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/taps` | — | List all taps (keg populated) |
+| `GET` | `/api/taps/{id}` | — | Single tap |
+| `POST` | `/api/taps` | ✓ | Create tap |
+| `DELETE` | `/api/taps/{id}` | ✓ | Delete tap |
+| `PUT` | `/api/taps/{id}/keg` | ✓ | Assign keg to tap |
+| `DELETE` | `/api/taps/{id}/keg` | ✓ | Remove keg from tap |
+| `POST` | `/api/taps/{id}/pour` | — | Record a manual pour |
 
-#### Internal packages
-| Package | Description |
-|---|---|
-| `internal/udp` | UDP sender/receiver wrappers |
-| `internal/api` | HTTP server — all REST endpoints + WebSocket hub |
+### Kegs
 
-#### API endpoints (server)
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/kegs` | — | List all kegs |
+| `POST` | `/api/kegs` | ✓ | Create keg |
+| `GET` | `/api/kegs/{id}` | — | Single keg |
+| `PATCH` | `/api/kegs/{id}` | ✓ | Partial update |
+| `DELETE` | `/api/kegs/{id}` | ✓ | Delete keg |
+| `GET` | `/api/kegs/{id}/stats` | — | Pour count, volume poured, % remaining |
+| `PUT` | `/api/kegs/{id}/image` | ✓ | Upload beer label image (stored as BLOB) |
+| `GET` | `/api/kegs/{id}/image` | — | Fetch beer label image |
+| `DELETE` | `/api/kegs/{id}/image` | ✓ | Remove beer label image |
+| `PUT` | `/api/kegs/{id}/brewery-image` | ✓ | Upload brewery logo |
+| `GET` | `/api/kegs/{id}/brewery-image` | — | Fetch brewery logo |
+| `DELETE` | `/api/kegs/{id}/brewery-image` | ✓ | Remove brewery logo |
+
+### Pours
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/pours` | — | List pours (paginated, `?tap_id=` filter) |
+| `DELETE` | `/api/pours/{id}` | ✓ | Delete a pour record |
+
+### Banner
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/banner` | — | Get custom banner message |
+| `PUT` | `/api/banner` | ✓ | Set custom banner message |
+| `DELETE` | `/api/banner` | ✓ | Clear custom banner |
+
+### Features
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/features` | — | List feature flags |
+| `PUT` | `/api/features/{name}` | ✓ | Enable or disable a feature |
+
+Available feature flags:
+
+| Flag | Default | Description |
+|---|---|---|
+| `flow_based_pour` | `false` | When enabled, hides the manual pour button (use once hardware flow meters are installed) |
+
+### Auth
+
 | Method | Path | Description |
 |---|---|---|
-| GET | `/api/health` | Version + status |
-| GET | `/api/taps` | List all taps (with current keg populated) |
-| GET | `/api/taps/{id}` | Single tap |
-| PUT | `/api/taps/{id}/keg` | Assign keg to tap |
-| DELETE | `/api/taps/{id}/keg` | Remove keg from tap |
-| GET | `/api/kegs` | List all kegs |
-| POST | `/api/kegs` | Create keg |
-| GET | `/api/kegs/{id}` | Single keg |
-| PATCH | `/api/kegs/{id}` | Partial update keg |
-| DELETE | `/api/kegs/{id}` | Delete keg |
-| GET | `/api/kegs/{id}/stats` | Pour count, poured ml, remaining ml, % remaining |
-| PUT | `/api/kegs/{id}/image` | Upload keg image (stored as SQLite BLOB) |
-| GET | `/api/kegs/{id}/image` | Fetch keg image |
-| DELETE | `/api/kegs/{id}/image` | Remove keg image |
-| GET | `/api/pours` | List pours (paginated, optional `?tap_id=` filter) |
-| DELETE | `/api/pours/{id}` | Delete a pour record |
-| GET | `/api/ws` | WebSocket — broadcasts `PourStarted`, `PourUpdated`, `PourEnded` events |
-| POST | `/api/dev/pour/{id}` | Simulate a pour (only when `--simulate` flag set) |
+| `GET` | `/api/admin/status` | Whether an admin password has been set |
+| `POST` | `/api/admin/setup` | Set the admin password (first-run only) |
+| `POST` | `/api/admin/login` | Login, returns session cookie |
+| `POST` | `/api/admin/logout` | Invalidate session |
 
-#### SQLite schema (v3)
-- `kegs` — beer metadata + image BLOB
-- `taps` — maps tap ID to current keg
-- `pours` — pour records with volume + timestamps (millisecond precision)
+### WebSocket
 
-#### GoReleaser
-- Agent: `linux/arm64` + `linux/armv7` only (Pi targets)
-- Server: `linux/amd64`, `linux/arm64`, `darwin/amd64`, `darwin/arm64`
-- `CGO_ENABLED=0` throughout (modernc.org/sqlite is pure Go)
-
-#### Tests
-Full test suite, stdlib only, passing with `-race`:
-
-| Package | Tests |
+| Path | Description |
 |---|---|
-| `pkg/protocol` | 5 — encode/decode round-trip, boundary values, error cases |
-| `pkg/flow` | 7 — PourStarted/Updated/Ended, volume math, sequential pours, full-channel safety |
-| `pkg/agent` | 5 — SimulatorRequester registration, pulse delivery, close/cleanup |
-| `pkg/tap` | 18 — full CRUD, migrations, image blob, stats, pagination |
-| `pkg/config` | 10 — Default, FileLoader, EnvLoader, StaticLoader |
-| `internal/api` | 27 — all HTTP handler routes, mockStore with func fields |
+| `GET /api/ws` | Live pour events: `PourStarted`, `PourUpdated`, `PourEnded` |
 
----
+### Dev (simulate mode only)
 
-### `web/` — SvelteKit frontend
-
-**Current state:** Clean scaffold only — SvelteKit v2 + Svelte 5 (runes mode) + Tailwind v4 + TypeScript. No pages implemented yet.
-
----
-
-## Planned next: display frontend
-
-A read-only keg display UI for a tablet or wall-mounted screen.
-
-### UX
-- Full-screen per-keg pages, swipeable left/right (one page per active tap)
-- CSS scroll snap — no JS swipe library needed
-- No admin controls (admin is a separate tool/computer)
-
-### Per-keg page shows
-- Beer name, brewery, style, ABV
-- Animated vertical fill gauge (green → amber → red as keg empties)
-- Remaining volume + percentage
-- Total pour count
-
-### Three banner types (fixed overlay at top of screen)
-| Banner | Trigger | Color |
+| Method | Path | Description |
 |---|---|---|
-| Active pour | WebSocket `PourStarted`/`PourUpdated` event | Amber, pulsing |
-| Low keg | Any keg below 20% remaining | Orange |
-| Custom message | Admin sets via `PUT /api/banner` | Indigo |
+| `POST` | `/api/dev/pour/{id}` | Trigger a simulated pour on tap `{id}` |
 
-### Required backend additions
-- SQLite migration v4: `settings` key-value table
-- `GetBannerMessage` / `SetBannerMessage` on Store + SQLiteStore
-- New routes: `GET /api/banner`, `PUT /api/banner`, `DELETE /api/banner`
+### System
 
-### Frontend files to create
-| File | Purpose |
-|---|---|
-| `web/vite.config.ts` | Dev proxy `/api` → `localhost:8080` |
-| `web/src/lib/api.ts` | TypeScript types + fetch helpers |
-| `web/src/lib/ws.ts` | Svelte 5 `$state` WebSocket store for live pour events |
-| `web/src/routes/+page.ts` | Client-side load (SSR off) |
-| `web/src/routes/+page.svelte` | Carousel + banner wiring |
-| `web/src/lib/components/LevelGauge.svelte` | Animated vertical fill bar |
-| `web/src/lib/components/KegCard.svelte` | Full-screen keg card |
-| `web/src/lib/components/BannerStack.svelte` | Stacked banner overlay |
-
-### UI library
-None — raw Tailwind utilities only. Tailwind v4 + Svelte 5 runes mode breaks most component libraries; the component needs here are simple enough without one.
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/health` | Version + status |
 
 ---
 
-## Running locally
+## Web UI
 
-```bash
-# Backend
-cd gopints
-go run ./cmd/server --simulate       # server on :8080
+### Public display (`/`)
 
-# In another terminal — simulate pours
-cd gopints
-go run ./cmd/agent simulate --tap 1 --hz 10 --pulses 450 --interval 30s
+Full-screen keg carousel with one card per active tap. Live pour banners appear over the carousel via WebSocket events. Guests can log manual pours directly from the public page (no login required).
 
-# Frontend (once implemented)
-cd web
-npm run dev                          # dev server on :5173
-```
+### Admin panel (`/admin`)
 
-## Running tests
+Password-protected. First visit prompts for an admin password setup.
+
+| Page | Path |
+|---|---|
+| Kegs | `/admin/kegs` |
+| Taps | `/admin/taps` |
+| Banner | `/admin/banner` |
+| Pour History | `/admin/pours` |
+| Features | `/admin/features` |
+
+---
+
+## CI / CD
+
+| Workflow | Trigger | What it does |
+|---|---|---|
+| `ci.yml` | Pull request → `main` | Go lint + test + build, frontend lint + type-check + build |
+| `release-please.yml` | Push → `main` | Maintains a Release PR; merging it bumps the version, updates `CHANGELOG.md`, and publishes a GitHub Release |
+| `release.yml` | GitHub Release published | Builds + pushes `server` and `web` Docker images to GHCR; runs GoReleaser to attach agent binaries to the release |
+
+### Versioning
+
+Versioning is driven by [Conventional Commits](https://www.conventionalcommits.org/):
+
+| Commit prefix | Version bump |
+|---|---|
+| `fix:` | patch |
+| `feat:` | minor |
+| `feat!:` or `BREAKING CHANGE:` | major |
+
+When commits land on `main`, release-please opens or updates a Release PR. Merging the Release PR:
+1. Bumps the version in `.release-please-manifest.json`
+2. Updates `CHANGELOG.md`
+3. Creates a `vX.Y.Z` tag and GitHub Release
+
+The release workflow then fires and publishes all artifacts.
+
+### Released artifacts
+
+| Artifact | Registry / location |
+|---|---|
+| `ghcr.io/rickcern44/gopints-server:vX.Y.Z` | GHCR |
+| `ghcr.io/rickcern44/gopints-web:vX.Y.Z` | GHCR |
+| `gopints-agent-linux-amd64` | GitHub Release assets |
+| `gopints-agent-linux-arm64` | GitHub Release assets |
+| `gopints-agent-linux-armv7` | GitHub Release assets |
+| `checksums.txt` | GitHub Release assets |
+
+Both container images are built for `linux/amd64` and `linux/arm64`.
+
+---
+
+## Tests
 
 ```bash
 cd gopints
 go test -race ./...
 ```
+
+| Package | Tests |
+|---|---|
+| `pkg/protocol` | Encode/decode round-trip, boundary values, error cases |
+| `pkg/flow` | PourStarted/Updated/Ended, volume math, sequential pours, full-channel safety |
+| `pkg/agent` | SimulatorRequester registration, pulse delivery, close/cleanup |
+| `pkg/tap` | Full CRUD, migrations, image blob, stats, pagination |
+| `pkg/config` | Default, FileLoader, EnvLoader, StaticLoader |
+| `internal/api` | All HTTP handler routes, feature flags, manual pour, mock store |
+
+---
+
+## Architecture notes
+
+- **Agent binary** compiles only on Linux (`go-gpiocdev` uses Linux GPIO character device). Use `--simulate` on other platforms.
+- **Pure-Go SQLite** (`modernc.org/sqlite`) — `CGO_ENABLED=0` throughout; no C toolchain needed in Docker.
+- **Tap ID** is `uint8` (1–255) at every layer.
+- **Volume** is always stored in milliliters. Default sensor calibration: 450 pulses/liter.
+- **SQLite timestamps** are milliseconds since epoch; UDP protocol uses nanoseconds.
+- **Session tokens** are in-memory only (24-hour TTL). Restarting the server invalidates all sessions.

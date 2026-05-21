@@ -6,11 +6,12 @@ before:
 
 builds:
   - id: agent
-    binary: kegerator-agent
+    binary: gopints-agent
     main: ./cmd/agent
     goos:
       - linux
     goarch:
+      - amd64
       - arm64
       - arm
     goarm:
@@ -20,40 +21,23 @@ builds:
     ldflags:
       - -s -w -X main.version={{.Version}}
 
-  - id: server
-    binary: kegerator-server
-    main: ./cmd/server
-    goos:
-      - linux
-      - darwin
-    goarch:
-      - amd64
-      - arm64
-    env:
-      - CGO_ENABLED=0
-    ldflags:
-      - -s -w -X main.version={{.Version}}
-
+# Produce flat binaries (no archive) so setup-agent.sh can download them directly.
+# Output names match what the installer expects:
+#   gopints-agent-linux-amd64
+#   gopints-agent-linux-arm64
+#   gopints-agent-linux-armv7
 archives:
   - id: agent
-    builds:
-      - agent
-    name_template: "kegerator-agent_{{.Version}}_{{.Os}}_{{.Arch}}{{if .Arm}}v{{.Arm}}{{end}}"
-    format: tar.gz
-
-  - id: server
-    builds:
-      - server
-    name_template: "kegerator-server_{{.Version}}_{{.Os}}_{{.Arch}}"
-    format: tar.gz
+    builds: [agent]
+    name_template: "gopints-agent-{{ .Os }}-{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    format: binary
 
 checksum:
   name_template: checksums.txt
 
+release:
+  # release-please already created the GitHub release; just append binaries to it.
+  mode: append
+
 changelog:
-  sort: asc
-  filters:
-    exclude:
-      - "^docs:"
-      - "^test:"
-      - "^chore:"
+  use: github-native
