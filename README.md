@@ -32,7 +32,7 @@ Override the image tag to pin a specific release:
 GOPINTS_TAG=v1.2.3 docker compose up -d
 ```
 
-The server is available on port `8080` (internal) and the web UI on port `80`. Configure the server via environment variables in `docker-compose.yml`:
+The web UI is available at `http://localhost:8081` by default. To use port 80 in production, set `WEB_PORT=80`. Configure the server via environment variables in `docker-compose.yml`:
 
 | Variable | Default | Description |
 |---|---|---|
