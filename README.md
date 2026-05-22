@@ -318,3 +318,5 @@ go test -race ./...
 - **Volume** is always stored in milliliters. Default sensor calibration: 450 pulses/liter.
 - **SQLite timestamps** are milliseconds since epoch; UDP protocol uses nanoseconds.
 - **Session tokens** are in-memory only (24-hour TTL). Restarting the server invalidates all sessions.
+
+
