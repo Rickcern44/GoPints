@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.4](https://github.com/Rickcern44/GoPints/compare/v0.2.3...v0.2.4) (2026-05-22)
+
+
+### Bug Fixes
+
+* trigger release ([17ff63e](https://github.com/Rickcern44/GoPints/commit/17ff63ec3ed724ea1ec79e280d05203a2a7fafa5))
+* trigger release ([60d7533](https://github.com/Rickcern44/GoPints/commit/60d753392903a3afcec88985d0b88d2294ff22e0))
+
 ## [0.2.3](https://github.com/Rickcern44/GoPints/compare/v0.2.2...v0.2.3) (2026-05-22)
 
 
