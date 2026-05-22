@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.2](https://github.com/Rickcern44/GoPints/compare/v0.2.1...v0.2.2) (2026-05-21)
+
+
+### Bug Fixes
+
+* updated yaml ([8a68dad](https://github.com/Rickcern44/GoPints/commit/8a68dada39c9509bd345811d698f52a18f552c85))
+
+## [0.2.1](https://github.com/Rickcern44/GoPints/compare/v0.2.0...v0.2.1) (2026-05-21)
+
+
+### Bug Fixes
+
+* updated release pipelines ([82c8325](https://github.com/Rickcern44/GoPints/commit/82c832579d4d41c15c5209640b2cfb21ef6c54a3))
+
 ## [0.2.0](https://github.com/Rickcern44/GoPints/compare/v0.1.0...v0.2.0) (2026-05-21)
 
 
