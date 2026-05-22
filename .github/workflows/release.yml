@@ -2,10 +2,9 @@ name: Publish
 
 # Fires when release-please merges a release PR and publishes the GitHub release.
 on:
-on:
-  push:
-    tags:
-      - "v*"
+  release:
+    types: [published]
+    
 env:
   REGISTRY: ghcr.io
 
