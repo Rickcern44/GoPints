@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/Rickcern44/GoPints/compare/v0.2.2...v0.2.3) (2026-05-22)
+
+
+### Bug Fixes
+
+* changed trigger again ([52e7bc4](https://github.com/Rickcern44/GoPints/commit/52e7bc417f3643e052fb9c266a52c0fd6dc83d3c))
+
 ## [0.2.2](https://github.com/Rickcern44/GoPints/compare/v0.2.1...v0.2.2) (2026-05-21)
 
 
