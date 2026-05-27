@@ -211,10 +211,11 @@
 
 	/* ─── Shell ──────────────────────────────────────────────────── */
 	.admin-shell {
+		position: fixed;
+		inset: 0;
 		display: flex;
-		height: 100dvh;
 		color: #111827;
-		position: relative;
+		overflow: hidden;
 	}
 
 	/* ─── Desktop sidebar ────────────────────────────────────────── */
@@ -357,6 +358,7 @@
 	.main-content {
 		flex: 1;
 		overflow-y: auto;
+		overflow-x: hidden;
 		background-color: #fafaf9;
 		padding: 2rem;
 		/* mobile: top bar + bottom nav */
