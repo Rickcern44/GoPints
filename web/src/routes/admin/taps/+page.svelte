@@ -181,12 +181,12 @@
 		<div class="space-y-3">
 			{#each taps as tap (tap.id)}
 				<div class="rounded-xl border border-gray-200 bg-white shadow-sm">
-					<div class="flex items-center gap-4 p-4">
+					<!-- ── Desktop layout: single flex row ── -->
+					<div class="hidden sm:flex items-center gap-4 p-4">
 						<div class="min-w-[52px] text-center">
 							<div class="text-2xl font-black text-gray-800">#{tap.id}</div>
 							<div class="text-xs text-gray-400">tap</div>
 						</div>
-
 						<div class="flex-1 min-w-0">
 							{#if tap.keg}
 								<div class="text-sm font-medium text-gray-900 truncate">{tap.keg.beer_name}</div>
@@ -195,69 +195,106 @@
 								<div class="text-sm italic text-gray-400">No keg assigned</div>
 							{/if}
 						</div>
-
 						<div class="flex items-center gap-2 shrink-0">
 							{#if !flowEnabled && tap.keg}
 								<div class="pour-wrap">
 									{#if pourOpen[tap.id]}
-										<button
-											class="pour-backdrop"
-											onclick={() => (pourOpen[tap.id] = false)}
-											aria-label="Close"
-											tabindex="-1"
-										></button>
+										<button class="pour-backdrop" onclick={() => (pourOpen[tap.id] = false)} aria-label="Close" tabindex="-1"></button>
 									{/if}
 									<div class="pour-trigger">
 										{#if pourOpen[tap.id]}
 											<div class="pour-flyout">
 												{#each POUR_PRESETS as preset}
-													<button
-														class="preset-btn"
-														disabled={pouring[tap.id]}
-														onclick={() => logPour(tap.id, preset.ml)}
-													>{preset.label}</button>
+													<button class="preset-btn" disabled={pouring[tap.id]} onclick={() => logPour(tap.id, preset.ml)}>{preset.label}</button>
 												{/each}
 											</div>
 										{/if}
-										<button
-											class="btn btn-pour"
-											class:open={pourOpen[tap.id]}
-											disabled={pouring[tap.id]}
-											onclick={() => (pourOpen[tap.id] = !pourOpen[tap.id])}
-										>
+										<button class="btn btn-pour" class:open={pourOpen[tap.id]} disabled={pouring[tap.id]} onclick={() => (pourOpen[tap.id] = !pourOpen[tap.id])}>
 											{#if pouring[tap.id]}<Spinner size={13} />{/if}
 											{pouring[tap.id] ? 'Logging…' : 'Log Pour'}
 										</button>
 									</div>
 								</div>
 							{/if}
-
 							{#if pourSuccess[tap.id]}
 								<span class="text-xs font-medium text-green-600">Logged!</span>
 							{/if}
-
-							<select
-								bind:value={selections[tap.id]}
-								class="rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
-							>
+							<select bind:value={selections[tap.id]} class="rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none">
 								<option value="">— Remove keg —</option>
 								{#each kegs as keg (keg.id)}
 									<option value={String(keg.id)}>{keg.beer_name}</option>
 								{/each}
 							</select>
-							<button
-								onclick={() => assignKeg(tap.id)}
-								disabled={assigning[tap.id]}
-								class="btn btn-secondary flex items-center gap-1.5"
-							>
+							<button onclick={() => assignKeg(tap.id)} disabled={assigning[tap.id]} class="btn btn-secondary flex items-center gap-1.5">
 								{#if assigning[tap.id]}<Spinner size={13} />{/if}
 								Apply
 							</button>
-							<button
-								onclick={() => deleteTap(tap.id)}
-								disabled={deleting[tap.id]}
-								class="btn btn-danger flex items-center gap-1.5"
-							>
+							<button onclick={() => deleteTap(tap.id)} disabled={deleting[tap.id]} class="btn btn-danger flex items-center gap-1.5">
+								{#if deleting[tap.id]}<Spinner size={13} />{/if}
+								Delete
+							</button>
+						</div>
+					</div>
+
+					<!-- ── Mobile layout: stacked ── -->
+					<div class="sm:hidden p-4">
+						<!-- Header: tap number + keg name -->
+						<div class="flex items-center gap-3 mb-3">
+							<div class="text-center min-w-[40px]">
+								<div class="text-xl font-black text-gray-800">#{tap.id}</div>
+								<div class="text-xs text-gray-400">tap</div>
+							</div>
+							<div class="flex-1 min-w-0">
+								{#if tap.keg}
+									<div class="text-sm font-medium text-gray-900 truncate">{tap.keg.beer_name}</div>
+									<div class="text-xs text-gray-500">{tap.keg.brewery || ''} · {(tap.keg.capacity_ml / 1000).toFixed(1)}L</div>
+								{:else}
+									<div class="text-sm italic text-gray-400">No keg assigned</div>
+								{/if}
+							</div>
+							{#if pourSuccess[tap.id]}
+								<span class="text-xs font-medium text-green-600">Logged!</span>
+							{/if}
+						</div>
+
+						<!-- Keg select (full width) -->
+						<select
+							bind:value={selections[tap.id]}
+							class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none mb-2"
+						>
+							<option value="">— Remove keg —</option>
+							{#each kegs as keg (keg.id)}
+								<option value={String(keg.id)}>{keg.beer_name}</option>
+							{/each}
+						</select>
+
+						<!-- Action buttons row -->
+						<div class="flex gap-2">
+							<button onclick={() => assignKeg(tap.id)} disabled={assigning[tap.id]} class="btn btn-secondary flex-1 flex items-center justify-center gap-1.5">
+								{#if assigning[tap.id]}<Spinner size={13} />{/if}
+								Apply
+							</button>
+							{#if !flowEnabled && tap.keg}
+								<div class="pour-wrap">
+									{#if pourOpen[tap.id]}
+										<button class="pour-backdrop" onclick={() => (pourOpen[tap.id] = false)} aria-label="Close" tabindex="-1"></button>
+									{/if}
+									<div class="pour-trigger">
+										{#if pourOpen[tap.id]}
+											<div class="pour-flyout">
+												{#each POUR_PRESETS as preset}
+													<button class="preset-btn" disabled={pouring[tap.id]} onclick={() => logPour(tap.id, preset.ml)}>{preset.label}</button>
+												{/each}
+											</div>
+										{/if}
+										<button class="btn btn-pour" class:open={pourOpen[tap.id]} disabled={pouring[tap.id]} onclick={() => (pourOpen[tap.id] = !pourOpen[tap.id])}>
+											{#if pouring[tap.id]}<Spinner size={13} />{/if}
+											{pouring[tap.id] ? 'Logging…' : 'Log Pour'}
+										</button>
+									</div>
+								</div>
+							{/if}
+							<button onclick={() => deleteTap(tap.id)} disabled={deleting[tap.id]} class="btn btn-danger flex items-center gap-1.5">
 								{#if deleting[tap.id]}<Spinner size={13} />{/if}
 								Delete
 							</button>
