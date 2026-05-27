@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="108" fill="#16100a"/>
+
+  <!-- Beer fill -->
+  <path d="M 114 108 L 161 424 Q 256 443 351 424 L 398 108 Z" fill="#c8821a"/>
+
+  <!-- Flat foam band (tapers with the glass walls) -->
+  <path d="M 114 108 L 398 108 L 390 172 L 122 172 Z" fill="#f5f0e8"/>
+
+  <!-- Glass wall outline (suggests a clear glass container) -->
+  <path d="M 114 108 L 161 424 Q 256 443 351 424 L 398 108 L 114 108"
+        fill="none"
+        stroke="rgba(255,255,255,0.22)"
+        stroke-width="9"
+        stroke-linejoin="round"
+        stroke-linecap="round"/>
+</svg>

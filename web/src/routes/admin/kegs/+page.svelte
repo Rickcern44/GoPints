@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { adminFetch } from '$lib/admin.js';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import { KEG_SIZES, kegSizeLabel } from '$lib/api.js';
@@ -88,8 +89,8 @@
 			{#if formError}
 				<div class="mb-4 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700">{formError}</div>
 			{/if}
-			<div class="grid grid-cols-2 gap-4">
-				<label class="col-span-2 flex flex-col gap-1 text-sm font-medium text-gray-700">
+			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+				<label class="col-span-1 flex flex-col gap-1 text-sm font-medium text-gray-700 sm:col-span-2">
 					Beer Name *
 					<input bind:value={form.beer_name} class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-normal focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none" placeholder="Hazy IPA" />
 				</label>
@@ -150,35 +151,47 @@
 	{:else if kegs.length === 0}
 		<p class="text-gray-500">No kegs yet. Create one above.</p>
 	{:else}
-		<div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+		<div class="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
 			<table class="w-full text-sm">
 				<thead class="border-b border-gray-200 bg-gray-50">
 					<tr>
 						<th class="px-4 py-3 text-left font-medium text-gray-600">Beer</th>
-						<th class="px-4 py-3 text-left font-medium text-gray-600">Brewery</th>
-						<th class="px-4 py-3 text-left font-medium text-gray-600">Style</th>
-						<th class="px-4 py-3 text-left font-medium text-gray-600">ABV</th>
-						<th class="px-4 py-3 text-left font-medium text-gray-600">Capacity</th>
+						<th class="hidden sm:table-cell px-4 py-3 text-left font-medium text-gray-600">Brewery</th>
+						<th class="hidden sm:table-cell px-4 py-3 text-left font-medium text-gray-600">Style</th>
+						<th class="hidden sm:table-cell px-4 py-3 text-left font-medium text-gray-600">ABV</th>
+						<th class="hidden sm:table-cell px-4 py-3 text-left font-medium text-gray-600">Capacity</th>
 						<th class="px-4 py-3"></th>
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-gray-100">
 					{#each kegs as keg (keg.id)}
-						<tr class="hover:bg-gray-50">
-							<td class="px-4 py-3 font-medium">{keg.beer_name}</td>
-							<td class="px-4 py-3 text-gray-600">{keg.brewery || '—'}</td>
-							<td class="px-4 py-3 text-gray-600">{keg.style || '—'}</td>
-							<td class="px-4 py-3 text-gray-600">{keg.abv ? `${keg.abv}%` : '—'}</td>
-							<td class="px-4 py-3 text-gray-600">{kegSizeLabel(keg.capacity_ml)}</td>
+						<tr
+							class="hover:bg-gray-50 sm:cursor-default cursor-pointer"
+							onclick={() => goto(`/admin/kegs/${keg.id}`)}
+						>
+							<td class="px-4 py-3 font-medium">
+								<span>{keg.beer_name}</span>
+								{#if keg.brewery || keg.style}
+									<div class="sm:hidden mt-0.5 text-xs text-gray-500 font-normal">
+										{[keg.brewery, keg.style].filter(Boolean).join(' · ')}
+									</div>
+								{/if}
+							</td>
+							<td class="hidden sm:table-cell px-4 py-3 text-gray-600">{keg.brewery || '—'}</td>
+							<td class="hidden sm:table-cell px-4 py-3 text-gray-600">{keg.style || '—'}</td>
+							<td class="hidden sm:table-cell px-4 py-3 text-gray-600">{keg.abv ? `${keg.abv}%` : '—'}</td>
+							<td class="hidden sm:table-cell px-4 py-3 text-gray-600">{kegSizeLabel(keg.capacity_ml)}</td>
 							<td class="px-4 py-3 text-right">
-								<a
-									href="/admin/kegs/{keg.id}"
-									class="mr-3 text-blue-600 hover:underline"
-								>Edit</a>
+								<!-- Desktop: Edit + Delete -->
+								<a href="/admin/kegs/{keg.id}" onclick={(e) => e.stopPropagation()} class="hidden sm:inline mr-3 text-blue-600 hover:underline">Edit</a>
 								<button
-									onclick={() => deleteKeg(keg.id)}
-									class="text-red-600 hover:underline"
+									onclick={(e) => { e.stopPropagation(); deleteKeg(keg.id); }}
+									class="hidden sm:inline text-red-600 hover:underline"
 								>Delete</button>
+								<!-- Mobile: chevron -->
+								<svg class="sm:hidden inline-block text-gray-400" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+									<path d="M9 18l6-6-6-6"/>
+								</svg>
 							</td>
 						</tr>
 					{/each}
