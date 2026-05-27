@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.0](https://github.com/Rickcern44/GoPints/compare/v0.3.0...v0.4.0) (2026-05-27)
+
+
+### Features
+
+* added PWA support and added reload to avoid stale data when usi… ([51c0272](https://github.com/Rickcern44/GoPints/commit/51c0272a2942598e73f58e7b6c44aa5f74191086))
+* added PWA support and added reload to avoid stale data when using admin panel ([443a013](https://github.com/Rickcern44/GoPints/commit/443a01319626676b31717cb906421e97d85554a7))
+
 ## [0.3.0](https://github.com/Rickcern44/GoPints/compare/v0.2.4...v0.3.0) (2026-05-27)
 
 
