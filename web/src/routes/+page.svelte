@@ -28,6 +28,42 @@
 	let pouring = $state<Record<number, boolean>>({});
 	let pourDone = $state<Record<number, boolean>>({});
 
+	let currentIndex = $state(0);
+	let carouselEl = $state<HTMLDivElement | undefined>(undefined);
+	let touchStartX = 0;
+	let touchStartY = 0;
+
+	$effect(() => {
+		if (currentIndex >= activeTaps.length && activeTaps.length > 0) {
+			currentIndex = activeTaps.length - 1;
+		}
+	});
+
+	function goTo(index: number) {
+		const clamped = Math.max(0, Math.min(index, activeTaps.length - 1));
+		currentIndex = clamped;
+		const slides = carouselEl?.querySelectorAll<HTMLElement>('.carousel-slide');
+		slides?.[clamped]?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+	}
+
+	function onTouchStart(e: TouchEvent) {
+		touchStartX = e.touches[0].clientX;
+		touchStartY = e.touches[0].clientY;
+	}
+
+	function onTouchEnd(e: TouchEvent) {
+		const dx = e.changedTouches[0].clientX - touchStartX;
+		const dy = e.changedTouches[0].clientY - touchStartY;
+		if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
+			goTo(currentIndex + (dx < 0 ? 1 : -1));
+		}
+	}
+
+	function onCarouselScroll() {
+		if (!carouselEl) return;
+		currentIndex = Math.round(carouselEl.scrollLeft / window.innerWidth);
+	}
+
 	onMount(() => {
 		pourSocket.connect();
 		fetchFeatures().then((f) => (flowEnabled = f.flow_based_pour));
@@ -80,7 +116,16 @@
 			<p class="empty-sub">Check back once the kegs are loaded up</p>
 		</div>
 	{:else}
-		<div class="carousel" style="scrollbar-width: none;">
+		<div
+			class="carousel"
+			style="scrollbar-width: none;"
+			role="region"
+			aria-label="Keg carousel"
+			bind:this={carouselEl}
+			ontouchstart={onTouchStart}
+			ontouchend={onTouchEnd}
+			onscroll={onCarouselScroll}
+		>
 			{#each activeTaps as tap (tap.id)}
 				<div class="carousel-slide">
 					<KegCard {tap} stats={stats[tap.keg!.id]} />
@@ -132,6 +177,19 @@
 				</div>
 			{/each}
 		</div>
+
+		{#if activeTaps.length > 1}
+			<div class="dot-nav">
+				{#each activeTaps as _, i}
+					<button
+						class="dot"
+						class:active={i === currentIndex}
+						onclick={() => goTo(i)}
+						aria-label="Go to tap {i + 1}"
+					></button>
+				{/each}
+			</div>
+		{/if}
 	{/if}
 
 	<a href="/admin" class="admin-corner" aria-label="Admin">
@@ -212,6 +270,39 @@
 		width: 100vw;
 		flex-shrink: 0;
 		scroll-snap-align: center;
+	}
+
+	.dot-nav {
+		position: absolute;
+		bottom: 1.25rem;
+		left: 50%;
+		transform: translateX(-50%);
+		display: flex;
+		gap: 0.5rem;
+		align-items: center;
+		z-index: 10;
+	}
+
+	.dot {
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		background: rgba(255, 255, 255, 0.2);
+		border: none;
+		padding: 0;
+		cursor: pointer;
+		transition:
+			background 0.2s,
+			transform 0.2s;
+	}
+
+	.dot.active {
+		background: rgba(200, 130, 26, 0.85);
+		transform: scale(1.5);
+	}
+
+	.dot:not(.active):hover {
+		background: rgba(255, 255, 255, 0.45);
 	}
 
 	.admin-corner {
