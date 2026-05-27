@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.0](https://github.com/Rickcern44/GoPints/compare/v0.2.4...v0.3.0) (2026-05-27)
+
+
+### Features
+
+* adding swipaeable feature and a dot index to show your location ([1c2bb77](https://github.com/Rickcern44/GoPints/commit/1c2bb7783f3cf822e35e3db00771cd106ac6fd61))
+* adding swipaeable feature and a dot index to show your location ([9eb82a5](https://github.com/Rickcern44/GoPints/commit/9eb82a51e39fae7c8fbe2babdb857e5c1d5ac680))
+
 ## [0.2.4](https://github.com/Rickcern44/GoPints/compare/v0.2.3...v0.2.4) (2026-05-22)
 
 
