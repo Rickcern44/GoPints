@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gopints-web
+  namespace: gopints
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gopints-web
+  template:
+    metadata:
+      labels:
+        app: gopints-web
+    spec:
+      containers:
+        - name: gopints-web
+          image: ghcr.io/rickcern44/gopints-web:0.4.0
+          ports:
+            - containerPort: 80

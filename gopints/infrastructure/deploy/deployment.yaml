@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gopints-server
+  namespace: gopints
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gopints-server
+  template:
+    metadata:
+      labels:
+        app: gopints-server
+    spec:
+      containers:
+        - name: gopints-server
+          image: ghcr.io/rickcern44/gopints-server:0.4.0
+          ports:
+            - containerPort: 8080
+          env:
+            - name: KEGERATOR_DB_PATH
+              value: /app/data/kegerator.db
+            - name: KEGERATOR_HTTP_ADDR
+              value: ":8080"
+            - name: KEGERATOR_UDP_ADDR
+              value: ":9876"
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 15
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: gopints-server-data
