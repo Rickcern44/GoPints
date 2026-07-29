@@ -15,6 +15,6 @@ spec:
     spec:
       containers:
         - name: gopints-web
-          image: ghcr.io/rickcern44/gopints-web:0.4
+          image: ghcr.io/rickcern44/gopints-web:0.4.0
           ports:
             - containerPort: 80
