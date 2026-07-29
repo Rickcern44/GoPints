@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: gopints-web
+  namespace: gopints
+spec:
+  selector:
+    app: gopints-web
+  ports:
+    - port: 80
+      targetPort: 80
