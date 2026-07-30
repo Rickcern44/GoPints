@@ -26,10 +26,10 @@ docker compose pull
 docker compose up -d
 ```
 
-Override the image tag to pin a specific release:
+The server and web images version independently, so each has its own tag variable. Override them to pin specific releases:
 
 ```bash
-GOPINTS_TAG=v1.2.3 docker compose up -d
+GOPINTS_SERVER_TAG=v1.2.3 GOPINTS_WEB_TAG=v0.5.0 docker compose up -d
 ```
 
 The web UI is available at `http://localhost:8081` by default. To use port 80 in production, set `WEB_PORT=80`. Configure the server via environment variables in `docker-compose.yml`:
@@ -63,7 +63,7 @@ The installer will:
 **Install a specific version:**
 
 ```bash
-sudo bash setup-agent.sh --version v1.2.3 --server 192.168.1.10:9876
+sudo bash setup-agent.sh --version gopints-v1.2.3 --server 192.168.1.10:9876
 ```
 
 **After install, edit the config:**
@@ -254,15 +254,18 @@ Password-protected. First visit prompts for an admin password setup.
 
 ## CI / CD
 
+`gopints/` (backend) and `web/` (frontend) release independently, each with its own version, CHANGELOG, and tag stream.
+
 | Workflow | Trigger | What it does |
 |---|---|---|
-| `ci.yml` | Pull request → `main` | Go lint + test + build, frontend lint + type-check + build |
-| `release-please.yml` | Push → `main` | Maintains a Release PR; merging it bumps the version, updates `CHANGELOG.md`, and publishes a GitHub Release |
-| `release.yml` | GitHub Release published | Builds + pushes `server` and `web` Docker images to GHCR; runs GoReleaser to attach agent binaries to the release |
+| `ci-backend.yml` | Pull request → `main` touching `gopints/**` | Go lint + test + build |
+| `ci-frontend.yml` | Pull request → `main` touching `web/**` | Frontend lint + type-check + build |
+| `release-please.yml` | Push → `main` | Maintains independent Release PRs for `gopints` and `web`; merging one bumps that package's version, updates its `CHANGELOG.md`, and publishes a GitHub Release |
+| `release.yml` | GitHub Release published | Builds + pushes only the image for the package that released (`gopints-server` or `gopints-web`) to GHCR; runs GoReleaser to attach agent binaries only for `gopints` releases; opens a PR bumping that package's k8s manifest image tag |
 
 ### Versioning
 
-Versioning is driven by [Conventional Commits](https://www.conventionalcommits.org/):
+Versioning is driven by [Conventional Commits](https://www.conventionalcommits.org/), scoped per package by which files a commit touches:
 
 | Commit prefix | Version bump |
 |---|---|
@@ -270,23 +273,23 @@ Versioning is driven by [Conventional Commits](https://www.conventionalcommits.o
 | `feat:` | minor |
 | `feat!:` or `BREAKING CHANGE:` | major |
 
-When commits land on `main`, release-please opens or updates a Release PR. Merging the Release PR:
-1. Bumps the version in `.release-please-manifest.json`
-2. Updates `CHANGELOG.md`
-3. Creates a `vX.Y.Z` tag and GitHub Release
+When commits land on `main`, release-please opens or updates a Release PR for whichever package(s) changed. Merging a Release PR:
+1. Bumps that package's version in `.release-please-manifest.json`
+2. Updates that package's `CHANGELOG.md`
+3. Creates a `gopints-vX.Y.Z` or `web-vX.Y.Z` tag and GitHub Release
 
-The release workflow then fires and publishes all artifacts.
+The release workflow then fires and publishes only that package's artifacts, and opens a follow-up PR (no auto-merge) updating that package's Kubernetes manifest image tag.
 
 ### Released artifacts
 
-| Artifact | Registry / location |
-|---|---|
-| `ghcr.io/rickcern44/gopints-server:vX.Y.Z` | GHCR |
-| `ghcr.io/rickcern44/gopints-web:vX.Y.Z` | GHCR |
-| `gopints-agent-linux-amd64` | GitHub Release assets |
-| `gopints-agent-linux-arm64` | GitHub Release assets |
-| `gopints-agent-linux-armv7` | GitHub Release assets |
-| `checksums.txt` | GitHub Release assets |
+| Artifact | Triggered by | Registry / location |
+|---|---|---|
+| `ghcr.io/rickcern44/gopints-server:X.Y.Z` | `gopints-vX.Y.Z` release | GHCR |
+| `ghcr.io/rickcern44/gopints-web:X.Y.Z` | `web-vX.Y.Z` release | GHCR |
+| `gopints-agent-linux-amd64` | `gopints-vX.Y.Z` release | GitHub Release assets |
+| `gopints-agent-linux-arm64` | `gopints-vX.Y.Z` release | GitHub Release assets |
+| `gopints-agent-linux-armv7` | `gopints-vX.Y.Z` release | GitHub Release assets |
+| `checksums.txt` | `gopints-vX.Y.Z` release | GitHub Release assets |
 
 Both container images are built for `linux/amd64` and `linux/arm64`.
 

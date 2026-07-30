@@ -6,15 +6,17 @@
 # Build locally instead:
 #   docker compose up --build
 #
-# Override the image prefix or tag via environment variables:
-#   GOPINTS_IMAGE=ghcr.io/your-org/your-repo  GOPINTS_TAG=v1.2.3  docker compose up -d
+# Override the image prefix or tags via environment variables:
+#   GOPINTS_IMAGE=ghcr.io/your-org/your-repo  GOPINTS_SERVER_TAG=v1.2.3  GOPINTS_WEB_TAG=v0.5.0  docker compose up -d
+#
+# The server and web images now version independently, so each has its own tag variable.
 #
 # Local port mapping:  http://localhost:8081  (web)
 # Production mapping:  port 80 via WEB_PORT=80 docker compose up -d
 
 services:
   server:
-    image: ${GOPINTS_IMAGE:-ghcr.io/rickcern44/gopints}-server:${GOPINTS_TAG:-latest}
+    image: ${GOPINTS_IMAGE:-ghcr.io/rickcern44/gopints}-server:${GOPINTS_SERVER_TAG:-latest}
     build:
       context: ./gopints
       dockerfile: Dockerfile
@@ -29,7 +31,7 @@ services:
     restart: unless-stopped
 
   web:
-    image: ${GOPINTS_IMAGE:-ghcr.io/rickcern44/gopints}-web:${GOPINTS_TAG:-latest}
+    image: ${GOPINTS_IMAGE:-ghcr.io/rickcern44/gopints}-web:${GOPINTS_WEB_TAG:-latest}
     build:
       context: ./web
       dockerfile: Dockerfile
