@@ -4,29 +4,35 @@ name: Publish
 on:
   release:
     types: [published]
-    
+
 env:
   REGISTRY: ghcr.io
 
 jobs:
+  # ── Parse the per-package release tag (<package>-v<version>) ───────────────
+  prepare:
+    name: Parse release tag
+    runs-on: ubuntu-latest
+    outputs:
+      package: ${{ steps.parse.outputs.package }}
+      version: ${{ steps.parse.outputs.version }}
+    steps:
+      - name: Parse tag
+        id: parse
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          echo "package=${TAG%%-v*}" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#*-v}" >> "$GITHUB_OUTPUT"
+
   # ── Docker containers (web + server) ───────────────────────────────────────
-  containers:
-    name: Build & push ${{ matrix.name }} container
+  build-server:
+    name: Build & push server container
+    needs: prepare
+    if: needs.prepare.outputs.package == 'gopints'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: web
-            context: ./web
-            dockerfile: ./web/Dockerfile
-          - name: server
-            context: ./gopints
-            dockerfile: ./gopints/Dockerfile
-
     steps:
       - uses: actions/checkout@v4
 
@@ -47,17 +53,17 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository }}-${{ matrix.name }}
+          images: ${{ env.REGISTRY }}/${{ github.repository }}-server
           tags: |
-            type=semver,pattern={{version}},value=${{ github.event.release.tag_name }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ github.event.release.tag_name }}
+            type=semver,pattern={{version}},value=v${{ needs.prepare.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=v${{ needs.prepare.outputs.version }}
             type=raw,value=latest
 
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
+          context: ./gopints
+          file: ./gopints/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
@@ -65,11 +71,61 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
-            VERSION=${{ github.event.release.tag_name }}
+            VERSION=${{ needs.prepare.outputs.version }}
+
+  build-web:
+    name: Build & push web container
+    needs: prepare
+    if: needs.prepare.outputs.package == 'web'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}-web
+          tags: |
+            type=semver,pattern={{version}},value=v${{ needs.prepare.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=v${{ needs.prepare.outputs.version }}
+            type=raw,value=latest
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./web
+          file: ./web/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=${{ needs.prepare.outputs.version }}
 
   # ── Agent binaries (GoReleaser) ────────────────────────────────────────────
   goreleaser:
     name: Build & attach agent binaries
+    needs: prepare
+    if: needs.prepare.outputs.package == 'gopints'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -92,4 +148,51 @@ jobs:
           args: release --clean --skip=validate
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GORELEASER_CURRENT_TAG: ${{ github.event.release.tag_name }}
+          GORELEASER_CURRENT_TAG: v${{ needs.prepare.outputs.version }}
+
+  # ── Infra manifest version bump (opens a PR, no auto-merge) ────────────────
+  bump-infra-version:
+    name: Bump infra manifest image tag
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Determine manifest path and image name
+        id: target
+        run: |
+          case "${{ needs.prepare.outputs.package }}" in
+            gopints)
+              echo "manifest=gopints/infrastructure/deploy/deployment.yaml" >> "$GITHUB_OUTPUT"
+              echo "image=gopints-server" >> "$GITHUB_OUTPUT"
+              ;;
+            web)
+              echo "manifest=web/infrastructure/deploy/deployment.yaml" >> "$GITHUB_OUTPUT"
+              echo "image=gopints-web" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Unknown package in tag: ${{ github.event.release.tag_name }}" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Update image tag
+        run: |
+          sed -i -E "s#(image: ${{ env.REGISTRY }}/rickcern44/${{ steps.target.outputs.image }}:).*#\1${{ needs.prepare.outputs.version }}#" "${{ steps.target.outputs.manifest }}"
+
+      - name: Open pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "chore(deploy): bump ${{ needs.prepare.outputs.package }} image tag to ${{ needs.prepare.outputs.version }}"
+          branch: infra-bump/${{ needs.prepare.outputs.package }}-${{ needs.prepare.outputs.version }}
+          title: "chore(deploy): bump ${{ needs.prepare.outputs.package }} to ${{ needs.prepare.outputs.version }}"
+          body: |
+            Automated update of the `${{ needs.prepare.outputs.package }}` Kubernetes deployment manifest image tag to `${{ needs.prepare.outputs.version }}`, following the release of `${{ github.event.release.tag_name }}`.
+
+            This does not apply the manifest to any cluster — merge this PR and apply manually.
+          add-paths: ${{ steps.target.outputs.manifest }}

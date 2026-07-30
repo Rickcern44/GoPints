@@ -5,7 +5,10 @@
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/rickcern44/gopints/main/scripts/setup-agent.sh | sudo bash
-#   sudo bash setup-agent.sh [--version v1.2.3] [--server 192.168.1.10:9876]
+#   sudo bash setup-agent.sh [--version gopints-v1.2.3] [--server 192.168.1.10:9876]
+#
+# --version accepts either the full release tag (gopints-v1.2.3) or a bare
+# version (v1.2.3) — the gopints- package prefix is added automatically if missing.
 
 set -euo pipefail
 
@@ -53,12 +56,17 @@ detect_arch() {
   esac
 }
 
-# ── Resolve latest release tag via GitHub API ────────────────────────────────
+# ── Resolve latest gopints release tag via GitHub API ────────────────────────
+# The repo now produces two independent tag streams (gopints-vX.Y.Z, web-vX.Y.Z),
+# so GitHub's single repo-wide "latest release" endpoint can't be used directly —
+# it might point at a web-only release with no agent binary attached. List
+# releases instead and take the newest one tagged gopints-v*.
 resolve_version() {
   local latest
-  latest="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
-    | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')"
-  [[ -n "$latest" ]] || error "Could not resolve latest release from GitHub API."
+  latest="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases" \
+    | grep '"tag_name"' | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/' \
+    | grep '^gopints-v' | head -1)"
+  [[ -n "$latest" ]] || error "Could not resolve latest gopints release from GitHub API."
   echo "$latest"
 }
 
@@ -71,8 +79,10 @@ ARCH="$(detect_arch)"
 info "Detected platform: $ARCH"
 
 if [[ -z "$VERSION" ]]; then
-  info "Resolving latest release…"
+  info "Resolving latest gopints release…"
   VERSION="$(resolve_version)"
+elif [[ "$VERSION" != gopints-* ]]; then
+  VERSION="gopints-${VERSION}"
 fi
 info "Installing version: $VERSION"
 
