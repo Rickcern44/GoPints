@@ -1,5 +1,3 @@
-mode: Mainline
 tag-prefix: 'web-v'
-ignore:
-  paths:
-    - '^(?!/web/).*'
+strategies:
+  - ConfiguredNextVersion
