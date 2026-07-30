@@ -36,7 +36,7 @@ checksum:
   name_template: checksums.txt
 
 release:
-  # release-please already created the GitHub release; just append binaries to it.
+  # release-prepare-backend.yml already created the GitHub release; just append binaries to it.
   mode: append
 
 changelog:

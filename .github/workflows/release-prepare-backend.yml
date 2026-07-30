@@ -1,0 +1,114 @@
+name: Prepare gopints Release
+
+# On every push to main touching gopints/ (excluding its own infra manifest,
+# to avoid re-triggering off the tag bump this workflow itself proposes):
+#   - if this push is the merge of a release-prep/gopints-v* branch, finalize
+#     the release (tag + GitHub release, which fires release.yml)
+#   - otherwise, compute the next version/changelog/infra-tag and propose (or
+#     update) a single consolidated PR
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'gopints/**'
+      - '!gopints/infrastructure/**'
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  release-prepare:
+    name: Propose or finalize gopints release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect release-prep merge
+        id: detect
+        run: |
+          MSG="${{ github.event.head_commit.message }}"
+          if [[ "$MSG" == *"release-prep/gopints-v"* ]]; then
+            VERSION="$(echo "$MSG" | grep -oE 'release-prep/gopints-v[0-9]+\.[0-9]+\.[0-9]+' | head -1 | sed 's#release-prep/gopints-v##')"
+            if [[ -z "$VERSION" ]]; then
+              echo "Detected a release-prep branch reference but could not extract a version from: $MSG" >&2
+              exit 1
+            fi
+            echo "is_finalize=true" >> "$GITHUB_OUTPUT"
+            echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_finalize=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ── Finalize: this push is the merge of a release-prep PR ────────────
+      - name: Extract release notes
+        if: steps.detect.outputs.is_finalize == 'true'
+        run: awk '/^## /{c++} c==1' gopints/CHANGELOG.md > /tmp/release-notes.md
+
+      - name: Create tag and publish release
+        if: steps.detect.outputs.is_finalize == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="gopints-v${{ steps.detect.outputs.version }}"
+          gh release create "$TAG" --target main --title "$TAG" --notes-file /tmp/release-notes.md
+
+      # ── Propose: ordinary push, compute next version and open/update PR ──
+      - name: Install GitVersion
+        if: steps.detect.outputs.is_finalize == 'false'
+        uses: gittools/actions/gitversion/setup@v4
+        with:
+          versionSpec: '6.x'
+
+      - name: Determine next version
+        if: steps.detect.outputs.is_finalize == 'false'
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v4
+        with:
+          configFilePath: gopints/GitVersion.yml
+
+      - name: Check for releasable changes
+        if: steps.detect.outputs.is_finalize == 'false'
+        id: check
+        run: |
+          LAST_TAG="$(git tag --list 'gopints-v*' --sort=-v:refname | head -1)"
+          NEXT_TAG="gopints-v${{ steps.gitversion.outputs.semVer }}"
+          if [[ "$NEXT_TAG" == "$LAST_TAG" ]]; then
+            echo "No releasable gopints changes since ${LAST_TAG:-<none>}; skipping."
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate changelog
+        if: steps.detect.outputs.is_finalize == 'false' && steps.check.outputs.should_release == 'true'
+        uses: orhun/git-cliff-action@v4
+        env:
+          OUTPUT: gopints/CHANGELOG.md
+        with:
+          config: gopints/cliff.toml
+          args: --tag gopints-v${{ steps.gitversion.outputs.semVer }}
+
+      - name: Update infra manifest image tag
+        if: steps.detect.outputs.is_finalize == 'false' && steps.check.outputs.should_release == 'true'
+        run: |
+          sed -i -E "s#(image: ${{ env.REGISTRY }}/rickcern44/gopints-server:).*#\1${{ steps.gitversion.outputs.semVer }}#" gopints/infrastructure/deploy/deployment.yaml
+
+      - name: Open release-prep pull request
+        if: steps.detect.outputs.is_finalize == 'false' && steps.check.outputs.should_release == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "chore(release): prepare gopints v${{ steps.gitversion.outputs.semVer }}"
+          branch: release-prep/gopints-v${{ steps.gitversion.outputs.semVer }}
+          title: "chore(release): gopints v${{ steps.gitversion.outputs.semVer }}"
+          body: |
+            Automated release-prep for `gopints` v${{ steps.gitversion.outputs.semVer }}.
+
+            Includes the `CHANGELOG.md` entry and the infrastructure deployment manifest image-tag bump together. Merging this PR creates the `gopints-v${{ steps.gitversion.outputs.semVer }}` tag and publishes the GitHub Release.
+          add-paths: |
+            gopints/CHANGELOG.md
+            gopints/infrastructure/deploy/deployment.yaml

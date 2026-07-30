@@ -1,0 +1,5 @@
+mode: Mainline
+tag-prefix: 'gopints-v'
+ignore:
+  paths:
+    - '^(?!/gopints/).*'

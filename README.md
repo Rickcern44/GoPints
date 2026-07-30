@@ -127,17 +127,19 @@ project-torrent/
 │   ├── pkg/tap/              Store interface + SQLiteStore
 │   ├── pkg/protocol/         10-byte UDP wire format
 │   ├── pkg/config/           Config loader chain
-│   └── .goreleaser.yaml      Agent binary release config
+│   ├── .goreleaser.yaml      Agent binary release config
+│   ├── GitVersion.yml        Version computation config (gopints package)
+│   └── cliff.toml            Changelog generation config (gopints package)
 ├── web/                      SvelteKit frontend
 │   ├── src/routes/           Pages (public display + admin panel)
 │   ├── src/lib/              API client, WebSocket store, components
 │   ├── Dockerfile            Multi-stage nginx build
-│   └── nginx.conf            Nginx config with /api proxy + WebSocket
+│   ├── nginx.conf            Nginx config with /api proxy + WebSocket
+│   ├── GitVersion.yml        Version computation config (web package)
+│   └── cliff.toml            Changelog generation config (web package)
 ├── scripts/
 │   └── setup-agent.sh        Pi agent installer
-├── docker-compose.yml        Production compose file
-├── release-please-config.json
-└── .release-please-manifest.json
+└── docker-compose.yml        Production compose file
 ```
 
 ---
@@ -260,12 +262,13 @@ Password-protected. First visit prompts for an admin password setup.
 |---|---|---|
 | `ci-backend.yml` | Pull request → `main` touching `gopints/**` | Go lint + test + build |
 | `ci-frontend.yml` | Pull request → `main` touching `web/**` | Frontend lint + type-check + build |
-| `release-please.yml` | Push → `main` | Maintains independent Release PRs for `gopints` and `web`; merging one bumps that package's version, updates its `CHANGELOG.md`, and publishes a GitHub Release |
-| `release.yml` | GitHub Release published | Builds + pushes only the image for the package that released (`gopints-server` or `gopints-web`) to GHCR; runs GoReleaser to attach agent binaries only for `gopints` releases; opens a PR bumping that package's k8s manifest image tag |
+| `release-prepare-backend.yml` | Push → `main` touching `gopints/**` | Computes `gopints`'s next version (GitVersion) and changelog (git-cliff), and opens/updates a single consolidated release-prep PR — or, if the push is the merge of that PR, creates the tag and publishes the GitHub Release |
+| `release-prepare-web.yml` | Push → `main` touching `web/**` | Same as above, scoped to `web` |
+| `release.yml` | GitHub Release published | Builds + pushes only the image for the package that released (`gopints-server` or `gopints-web`) to GHCR; runs GoReleaser to attach agent binaries only for `gopints` releases |
 
 ### Versioning
 
-Versioning is driven by [Conventional Commits](https://www.conventionalcommits.org/), scoped per package by which files a commit touches:
+Versioning is driven by [Conventional Commits](https://www.conventionalcommits.org/), scoped per package by which files a commit touches. Each package's version and changelog are computed independently — via [GitVersion](https://gitversion.net/) and [git-cliff](https://git-cliff.org/) respectively — from only the commits that touched that package's own path, bounded by that package's own tag history (`gopints/GitVersion.yml`, `gopints/cliff.toml`, and the `web/` equivalents):
 
 | Commit prefix | Version bump |
 |---|---|
@@ -273,12 +276,9 @@ Versioning is driven by [Conventional Commits](https://www.conventionalcommits.o
 | `feat:` | minor |
 | `feat!:` or `BREAKING CHANGE:` | major |
 
-When commits land on `main`, release-please opens or updates a Release PR for whichever package(s) changed. Merging a Release PR:
-1. Bumps that package's version in `.release-please-manifest.json`
-2. Updates that package's `CHANGELOG.md`
-3. Creates a `gopints-vX.Y.Z` or `web-vX.Y.Z` tag and GitHub Release
+When commits touching a package land on `main`, its `release-prepare-*.yml` workflow opens or updates a single pull request (`release-prep/<package>-v<version>`) containing that package's `CHANGELOG.md` entry and its Kubernetes deployment manifest image-tag bump together (and, for `web`, the `package.json` version bump). No PR opens if there's nothing releasable since the last tag.
 
-The release workflow then fires and publishes only that package's artifacts, and opens a follow-up PR (no auto-merge) updating that package's Kubernetes manifest image tag.
+Merging that PR **is** the release: the same workflow detects the merge, creates the `gopints-vX.Y.Z` or `web-vX.Y.Z` tag, and publishes the GitHub Release — which fires `release.yml` to publish that package's artifacts. There's no separate post-publish step; the infra manifest is already correct by the time the tag exists.
 
 ### Released artifacts
 
