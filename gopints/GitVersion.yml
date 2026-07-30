@@ -1,5 +1,3 @@
-mode: Mainline
 tag-prefix: 'gopints-v'
-ignore:
-  paths:
-    - '^(?!/gopints/).*'
+strategies:
+  - ConfiguredNextVersion
