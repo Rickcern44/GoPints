@@ -75,11 +75,12 @@ export function kegSizeLabel(ml: number): string {
 
 export interface Features {
 	flow_based_pour: boolean;
+	remote_image_urls: boolean;
 }
 
 export async function fetchFeatures(): Promise<Features> {
 	const res = await fetch('/api/features');
-	if (!res.ok) return { flow_based_pour: false };
+	if (!res.ok) return { flow_based_pour: false, remote_image_urls: false };
 	return res.json();
 }
 
@@ -101,6 +102,21 @@ export async function recordManualPour(tapId: number, volumeMl: number): Promise
 	});
 	if (!res.ok) throw new Error(`recordManualPour: ${res.status}`);
 	return res.json();
+}
+
+export interface Health {
+	status: string;
+	version: string;
+}
+
+export async function fetchHealth(): Promise<Health | null> {
+	try {
+		const res = await fetch('/api/health');
+		if (!res.ok) return null;
+		return await res.json();
+	} catch {
+		return null;
+	}
 }
 
 export async function fetchBanner(): Promise<string | null> {

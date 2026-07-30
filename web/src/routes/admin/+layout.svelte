@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { getToken, clearToken, adminFetch } from '$lib/admin.js';
+	import { fetchHealth } from '$lib/api.js';
 
 	let { children } = $props();
 
@@ -9,9 +10,19 @@
 	// Re-read on every navigation so a fresh login is reflected immediately.
 	let token = $derived(page.url.pathname ? getToken() : null);
 
+	let version = $state<string | null>(null);
+
 	$effect(() => {
 		if (!token && !isLogin) {
 			goto('/admin/login', { replaceState: true });
+		}
+	});
+
+	$effect(() => {
+		if (token && version === null) {
+			fetchHealth().then((h) => {
+				if (h) version = h.version;
+			});
 		}
 	});
 
@@ -203,6 +214,10 @@
 				</a>
 			{/each}
 		</nav>
+
+		{#if version}
+			<div class="version-badge" aria-hidden="true">v{version}</div>
+		{/if}
 	</div>
 {/if}
 
@@ -481,6 +496,18 @@
 		line-height: 1;
 	}
 
+	/* ─── Version badge ──────────────────────────────────────────── */
+	.version-badge {
+		display: none;
+		position: fixed;
+		bottom: 0.75rem;
+		right: 0.75rem;
+		font-size: 0.7rem;
+		color: rgba(120, 113, 108, 0.4);
+		pointer-events: none;
+		z-index: 40;
+	}
+
 	/* ─── Responsive breakpoint ──────────────────────────────────── */
 	@media (min-width: 768px) {
 		.sidebar {
@@ -494,6 +521,10 @@
 
 		.main-content {
 			padding: 2rem;
+		}
+
+		.version-badge {
+			display: block;
 		}
 	}
 </style>

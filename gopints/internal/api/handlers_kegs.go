@@ -176,6 +176,35 @@ func (s *Server) handleSetKegImage(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (s *Server) handleSetKegImageFromURL(w http.ResponseWriter, r *http.Request) {
+	if !s.featureEnabled(r.Context(), "remote_image_urls") {
+		writeError(w, http.StatusNotFound, "not found")
+		return
+	}
+	id, err := parseKegID(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid keg id")
+		return
+	}
+	var body struct {
+		URL string `json:"url"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.URL == "" {
+		writeError(w, http.StatusBadRequest, "url required")
+		return
+	}
+	data, mimeType, err := fetchRemoteImage(r.Context(), body.URL)
+	if err != nil {
+		writeFetchError(w, err)
+		return
+	}
+	if err := s.store.SetKegImage(r.Context(), id, data, mimeType); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (s *Server) handleGetKegImage(w http.ResponseWriter, r *http.Request) {
 	id, err := parseKegID(r)
 	if err != nil {
@@ -228,6 +257,35 @@ func (s *Server) handleSetBreweryImage(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(data) == 0 {
 		writeError(w, http.StatusBadRequest, "empty image body")
+		return
+	}
+	if err := s.store.SetBreweryImage(r.Context(), id, data, mimeType); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) handleSetBreweryImageFromURL(w http.ResponseWriter, r *http.Request) {
+	if !s.featureEnabled(r.Context(), "remote_image_urls") {
+		writeError(w, http.StatusNotFound, "not found")
+		return
+	}
+	id, err := parseKegID(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid keg id")
+		return
+	}
+	var body struct {
+		URL string `json:"url"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.URL == "" {
+		writeError(w, http.StatusBadRequest, "url required")
+		return
+	}
+	data, mimeType, err := fetchRemoteImage(r.Context(), body.URL)
+	if err != nil {
+		writeFetchError(w, err)
 		return
 	}
 	if err := s.store.SetBreweryImage(r.Context(), id, data, mimeType); err != nil {
