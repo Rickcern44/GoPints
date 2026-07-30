@@ -1,20 +1,21 @@
 name: Prepare gopints Release
 
 # On every push to main touching gopints/ (excluding its own infra manifest,
-# to avoid re-triggering off the tag bump this workflow itself proposes):
+# which only ever changes via release.yml's post-build direct commit, never
+# via this workflow):
 #   - if this push is the merge of a release-prep/gopints-v* branch, finalize
 #     the release (tag + GitHub release, which fires release.yml)
-#   - otherwise, compute the next version/changelog/infra-tag and propose (or
-#     update) a single consolidated PR
+#   - otherwise, compute the next version/changelog and propose (or update)
+#     a release-prep PR. The infra manifest's image tag is intentionally NOT
+#     bumped here — that only happens after release.yml confirms the image
+#     actually pushed to GHCR, so ArgoCD (auto-sync enabled) never sees a
+#     tag that doesn't exist yet.
 on:
   push:
     branches: [main]
     paths:
       - 'gopints/**'
       - '!gopints/infrastructure/**'
-
-env:
-  REGISTRY: ghcr.io
 
 jobs:
   release-prepare:
@@ -122,11 +123,6 @@ jobs:
           config: gopints/cliff.toml
           args: --tag gopints-v${{ steps.gitversion.outputs.semVer }}
 
-      - name: Update infra manifest image tag
-        if: steps.detect.outputs.is_finalize == 'false' && steps.check.outputs.should_release == 'true'
-        run: |
-          sed -i -E "s#(image: ${{ env.REGISTRY }}/rickcern44/gopints-server:).*#\1${{ steps.gitversion.outputs.semVer }}#" gopints/infrastructure/deploy/deployment.yaml
-
       - name: Open release-prep pull request
         if: steps.detect.outputs.is_finalize == 'false' && steps.check.outputs.should_release == 'true'
         uses: peter-evans/create-pull-request@v7
@@ -137,7 +133,6 @@ jobs:
           body: |
             Automated release-prep for `gopints` v${{ steps.gitversion.outputs.semVer }}.
 
-            Includes the `CHANGELOG.md` entry and the infrastructure deployment manifest image-tag bump together. Merging this PR creates the `gopints-v${{ steps.gitversion.outputs.semVer }}` tag and publishes the GitHub Release.
+            Includes the `CHANGELOG.md` entry. Merging this PR creates the `gopints-v${{ steps.gitversion.outputs.semVer }}` tag and publishes the GitHub Release, which builds and pushes the image — the Kubernetes deployment manifest's image tag is bumped automatically (as a direct commit to `main`, by `release.yml`) only after that image push succeeds, so ArgoCD never sees a tag that doesn't exist in GHCR yet.
           add-paths: |
             gopints/CHANGELOG.md
-            gopints/infrastructure/deploy/deployment.yaml
