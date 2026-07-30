@@ -1,0 +1,32 @@
+schema: spec-driven
+
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+# Add your tech stack, conventions, style guides, domain knowledge, etc.
+# Example:
+#   context: |
+#     Tech stack: TypeScript, React, Node.js
+#     We use conventional commits
+#     Domain: e-commerce platform
+
+context: |
+  TechStack: Go (API and agent), Sveltkit 5, SQLite, Docker, Kubernetes, playwright
+  Conventions: We use conventional commits
+  Testing: Each feature needs to be testsed end to end
+  Overview: An application that allows a user with kegerator with one or multiple taps to track
+    how many pours they have made, how much beer is left in the keg, and when they need to order more. The application also allows the user to track their favorite beers and share their kegerator with friends.
+    there are multiple components to the application, including a web application, a server, 
+    and an agent that runs on the kegerator. The web application is built with 
+    Sveltkit 5 and communicates with the server via REST API. The server is built with Go 
+    and communicates with the agent via UDP. The agent is built with Go and runs on 
+    the kegerator, communicating with the server via UDP. 
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours

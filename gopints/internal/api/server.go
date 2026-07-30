@@ -69,9 +69,11 @@ func NewServer(addr string, store tap.Store, meters map[uint8]*flow.Meter, simul
 	mux.HandleFunc("PUT /api/kegs/{id}/image", s.requireAuth(s.handleSetKegImage))
 	mux.HandleFunc("GET /api/kegs/{id}/image", s.handleGetKegImage)
 	mux.HandleFunc("DELETE /api/kegs/{id}/image", s.requireAuth(s.handleDeleteKegImage))
+	mux.HandleFunc("POST /api/kegs/{id}/image/from-url", s.requireAuth(s.handleSetKegImageFromURL))
 	mux.HandleFunc("PUT /api/kegs/{id}/brewery-image", s.requireAuth(s.handleSetBreweryImage))
 	mux.HandleFunc("GET /api/kegs/{id}/brewery-image", s.handleGetBreweryImage)
 	mux.HandleFunc("DELETE /api/kegs/{id}/brewery-image", s.requireAuth(s.handleDeleteBreweryImage))
+	mux.HandleFunc("POST /api/kegs/{id}/brewery-image/from-url", s.requireAuth(s.handleSetBreweryImageFromURL))
 
 	// Pours
 	mux.HandleFunc("GET /api/pours", s.handleListPours)

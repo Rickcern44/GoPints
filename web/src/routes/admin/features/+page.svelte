@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { fetchFeatures, setFeature, type Features } from '$lib/api.js';
 
-	let features = $state<Features>({ flow_based_pour: false });
+	let features = $state<Features>({ flow_based_pour: false, remote_image_urls: false });
 	let saving = $state<Partial<Record<keyof Features, boolean>>>({});
 	let error = $state('');
 
@@ -48,6 +48,26 @@
 				onclick={() => toggle('flow_based_pour')}
 				aria-pressed={features.flow_based_pour}
 				aria-label="Toggle Flow-Based Pour"
+			>
+				<span class="thumb"></span>
+			</button>
+		</div>
+
+		<div class="feature-card">
+			<div class="feature-info">
+				<p class="feature-name">Remote Image URLs</p>
+				<p class="feature-desc">
+					Let admins import a keg's beer image or brewery logo by pasting a URL instead of only
+					uploading a file. The server fetches and stores the image itself.
+				</p>
+			</div>
+			<button
+				class="toggle"
+				class:on={features.remote_image_urls}
+				disabled={saving.remote_image_urls}
+				onclick={() => toggle('remote_image_urls')}
+				aria-pressed={features.remote_image_urls}
+				aria-label="Toggle Remote Image URLs"
 			>
 				<span class="thumb"></span>
 			</button>

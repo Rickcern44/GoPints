@@ -1,24 +1,26 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 )
 
 const featurePrefix = "feature."
 
-var knownFeatures = []string{"flow_based_pour"}
+var knownFeatures = []string{"flow_based_pour", "remote_image_urls"}
 
 func (s *Server) handleListFeatures(w http.ResponseWriter, r *http.Request) {
 	features := make(map[string]bool, len(knownFeatures))
 	for _, name := range knownFeatures {
-		features[name] = false
-		val, err := s.store.GetSetting(r.Context(), featurePrefix+name)
-		if err == nil && val == "true" {
-			features[name] = true
-		}
+		features[name] = s.featureEnabled(r.Context(), name)
 	}
 	writeJSON(w, http.StatusOK, features)
+}
+
+func (s *Server) featureEnabled(ctx context.Context, name string) bool {
+	val, err := s.store.GetSetting(ctx, featurePrefix+name)
+	return err == nil && val == "true"
 }
 
 func (s *Server) handleSetFeature(w http.ResponseWriter, r *http.Request) {

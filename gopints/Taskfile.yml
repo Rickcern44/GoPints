@@ -1,0 +1,34 @@
+version: '3'
+
+tasks:
+  build:
+    desc: Build the kegerator-server binary
+    cmds:
+      - go build -o kegerator-server ./cmd/server
+
+  build-agent:
+    desc: Build the kegerator-agent binary (Linux/Pi only)
+    cmds:
+      - go build -o kegerator-agent ./cmd/agent
+
+  simulate:
+    desc: Run the server with simulate mode enabled (/dev endpoints, no real GPIO)
+    env:
+      KEGERATOR_SIMULATE: 'true'
+    cmds:
+      - go run ./cmd/server
+
+  agent-simulate:
+    desc: Run the agent's built-in pulse simulator against tap 1
+    cmds:
+      - go run ./cmd/agent simulate --tap 1 --pulses 450 --hz 10 --interval 30s
+
+  test:
+    desc: Run all Go tests with the race detector (matches CI)
+    cmds:
+      - go test -race ./...
+
+  lint:
+    desc: Run golangci-lint (matches CI)
+    cmds:
+      - golangci-lint run

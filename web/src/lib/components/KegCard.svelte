@@ -14,6 +14,15 @@
 
 <div class="card">
 	<div class="inner">
+		{#if keg.brewery}
+			<div class="brewery-plaque">
+				{#if hasBreweryImage}
+					<img src="/api/kegs/{keg.id}/brewery-image" alt="{keg.brewery} logo" class="plaque-logo" />
+				{/if}
+				<p class="plaque-name">{keg.brewery}</p>
+			</div>
+		{/if}
+
 		<div class="info">
 			<span class="tap-badge">TAP {tap.id}</span>
 
@@ -22,15 +31,6 @@
 			{/if}
 
 			<h1 class="name">{keg.beer_name}</h1>
-
-			{#if keg.brewery}
-				<div class="brewery-row">
-					{#if hasBreweryImage}
-						<img src="/api/kegs/{keg.id}/brewery-image" alt="{keg.brewery} logo" class="brewery-logo" />
-					{/if}
-					<p class="brewery">{keg.brewery}</p>
-				</div>
-			{/if}
 
 			<div class="tags">
 				{#if keg.style}<span class="tag">{keg.style}</span>{/if}
@@ -73,13 +73,53 @@
 	.inner {
 		display: flex;
 		align-items: center;
-		gap: 4rem;
+		gap: 3rem;
 		padding: 3rem 5vw;
 		width: 100%;
 		max-width: 1300px;
 	}
 
-	/* LEFT — beer info */
+	/* LEFT — brewery plaque */
+
+	.brewery-plaque {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 0.6rem;
+		width: 150px;
+		flex-shrink: 0;
+		padding: 1.5rem 1rem;
+		border-radius: 16px;
+		background: linear-gradient(160deg, rgba(200, 130, 26, 0.09), rgba(160, 100, 8, 0.03));
+		border: 1px solid rgba(200, 130, 26, 0.18);
+	}
+
+	.plaque-logo {
+		width: 120px;
+		height: 120px;
+		object-fit: contain;
+		border-radius: 12px;
+		background: rgba(255, 255, 255, 0.04);
+		padding: 0.5rem;
+	}
+
+	.plaque-name {
+		font-size: 0.85rem;
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		color: rgba(210, 175, 110, 0.75);
+		text-align: center;
+		margin: 0;
+		display: -webkit-box;
+		-webkit-line-clamp: 3;
+		line-clamp: 3;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+		word-break: break-word;
+	}
+
+	/* MIDDLE — beer info */
 
 	.info {
 		flex: 1;
@@ -128,21 +168,6 @@
 		border-radius: 50% / 12%;
 	}
 
-	.brewery-row {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-	}
-
-	.brewery-logo {
-		width: 28px;
-		height: 28px;
-		border-radius: 4px;
-		object-fit: contain;
-		background: rgba(255, 255, 255, 0.05);
-		flex-shrink: 0;
-	}
-
 	.name {
 		font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
 		font-size: clamp(2.5rem, 5vw, 5rem);
@@ -152,13 +177,6 @@
 		line-height: 1.1;
 		margin: 0;
 		word-break: break-word;
-	}
-
-	.brewery {
-		font-size: clamp(1rem, 2vw, 1.4rem);
-		color: rgba(210, 175, 110, 0.6);
-		margin: 0;
-		letter-spacing: 0.03em;
 	}
 
 	.tags {

@@ -1,0 +1,22 @@
+version: '3'
+
+tasks:
+  dev:
+    desc: Run the SvelteKit dev server (proxies /api to localhost:8080)
+    cmds:
+      - npm run dev
+
+  build:
+    desc: Build the production frontend
+    cmds:
+      - npm run build
+
+  check:
+    desc: Type check and validate Svelte components (matches CI)
+    cmds:
+      - npm run check
+
+  lint:
+    desc: Lint with Biome (matches CI)
+    cmds:
+      - npm run lint

@@ -4,7 +4,7 @@
 	import { onMount } from 'svelte';
 	import { adminFetch } from '$lib/admin.js';
 	import Spinner from '$lib/components/Spinner.svelte';
-	import { KEG_SIZES } from '$lib/api.js';
+	import { KEG_SIZES, fetchFeatures } from '$lib/api.js';
 	import type { Keg } from '$lib/api.js';
 
 	let keg = $state<Keg | null>(null);
@@ -26,6 +26,14 @@
 	let breweryDragOver = $state(false);
 	let breweryFileInput = $state<HTMLInputElement | undefined>(undefined);
 
+	let remoteImageUrlsEnabled = $state(false);
+	let imageMode = $state<'upload' | 'url'>('upload');
+	let breweryMode = $state<'upload' | 'url'>('upload');
+	let imageUrlValue = $state('');
+	let breweryUrlValue = $state('');
+	let importingImage = $state(false);
+	let importingBreweryImage = $state(false);
+
 	onMount(async () => {
 		try {
 			const res = await fetch(`/api/kegs/${page.params.id}`);
@@ -43,6 +51,8 @@
 			};
 			hasImage = !!keg!.image_mime_type;
 			hasBreweryImage = !!keg!.brewery_image_mime_type;
+			const features = await fetchFeatures();
+			remoteImageUrlsEnabled = features.remote_image_urls;
 		} catch {
 			error = 'Failed to load keg. Check that the server is running.';
 		} finally {
@@ -124,6 +134,29 @@
 		hasImage = false;
 	}
 
+	async function importImageFromUrl() {
+		if (!imageUrlValue.trim()) return;
+		error = ''; success = '';
+		importingImage = true;
+		try {
+			const res = await adminFetch(`/api/kegs/${page.params.id}/image/from-url`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ url: imageUrlValue.trim() })
+			});
+			if (!res.ok) {
+				const body = await res.json().catch(() => ({}));
+				error = body.error || 'Could not import image from that URL';
+				return;
+			}
+			hasImage = true;
+			success = 'Image imported';
+			imageUrlValue = '';
+		} finally {
+			importingImage = false;
+		}
+	}
+
 	async function uploadBreweryImage() {
 		if (!breweryFile) return;
 		error = ''; success = '';
@@ -147,6 +180,29 @@
 		if (!confirm('Remove brewery image?')) return;
 		await adminFetch(`/api/kegs/${page.params.id}/brewery-image`, { method: 'DELETE' });
 		hasBreweryImage = false;
+	}
+
+	async function importBreweryImageFromUrl() {
+		if (!breweryUrlValue.trim()) return;
+		error = ''; success = '';
+		importingBreweryImage = true;
+		try {
+			const res = await adminFetch(`/api/kegs/${page.params.id}/brewery-image/from-url`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ url: breweryUrlValue.trim() })
+			});
+			if (!res.ok) {
+				const body = await res.json().catch(() => ({}));
+				error = body.error || 'Could not import image from that URL';
+				return;
+			}
+			hasBreweryImage = true;
+			success = 'Brewery image imported';
+			breweryUrlValue = '';
+		} finally {
+			importingBreweryImage = false;
+		}
 	}
 
 	function handleBreweryFileSelect(file: File | null | undefined) {
@@ -284,36 +340,54 @@
 						>Remove</button>
 					</div>
 				{:else}
-					<input type="file" accept="image/*" bind:this={fileInput}
-						onchange={(e) => handleFileSelect((e.currentTarget as HTMLInputElement).files?.[0])}
-						class="sr-only" />
-					<div class="dropzone" class:drag-over={dragOver} role="button" tabindex="0"
-						onclick={() => fileInput?.click()}
-						onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && fileInput?.click()}
-						ondragover={(e) => { e.preventDefault(); dragOver = true; }}
-						ondragleave={(e) => { const r = e.relatedTarget as Node|null; if (!r || !(e.currentTarget as HTMLElement).contains(r)) dragOver = false; }}
-						ondrop={handleDrop}>
-						{#if imageFile && imagePreview}
-							<button class="clear-btn" onclick={(e) => { e.stopPropagation(); clearSelection(); }} aria-label="Clear">✕</button>
-							<img src={imagePreview} alt="Preview" class="preview-img" />
-							<div class="file-meta">
-								<span class="file-name">{imageFile.name}</span>
-								<span class="file-size">{(imageFile.size / 1024).toFixed(0)} KB</span>
-							</div>
-						{:else}
-							<div class="drop-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
-							<p class="drop-label">Drop or <span class="browse-link">browse</span></p>
-							<p class="drop-hint">PNG, JPG, WebP</p>
-						{/if}
-					</div>
-					{#if imageFile}
-						<div class="mt-2 flex justify-end">
-							<button onclick={uploadImage} disabled={saving}
+					{#if remoteImageUrlsEnabled}
+						<div class="mode-toggle">
+							<button type="button" class="mode-btn {imageMode === 'upload' ? 'active' : ''}" onclick={() => (imageMode = 'upload')}>Upload</button>
+							<button type="button" class="mode-btn {imageMode === 'url' ? 'active' : ''}" onclick={() => (imageMode = 'url')}>Paste URL</button>
+						</div>
+					{/if}
+					{#if remoteImageUrlsEnabled && imageMode === 'url'}
+						<div class="url-import">
+							<input type="url" placeholder="https://example.com/beer.png" bind:value={imageUrlValue}
+								class="url-input" />
+							<button onclick={importImageFromUrl} disabled={importingImage || !imageUrlValue.trim()}
 								class="inline-flex items-center gap-1.5 rounded-lg bg-gray-800 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-gray-700 disabled:opacity-40">
-								{#if saving}<Spinner size={12} />{/if}
-								{saving ? 'Uploading…' : 'Upload'}
+								{#if importingImage}<Spinner size={12} />{/if}
+								{importingImage ? 'Importing…' : 'Import'}
 							</button>
 						</div>
+					{:else}
+						<input type="file" accept="image/*" bind:this={fileInput}
+							onchange={(e) => handleFileSelect((e.currentTarget as HTMLInputElement).files?.[0])}
+							class="sr-only" />
+						<div class="dropzone" class:drag-over={dragOver} role="button" tabindex="0"
+							onclick={() => fileInput?.click()}
+							onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && fileInput?.click()}
+							ondragover={(e) => { e.preventDefault(); dragOver = true; }}
+							ondragleave={(e) => { const r = e.relatedTarget as Node|null; if (!r || !(e.currentTarget as HTMLElement).contains(r)) dragOver = false; }}
+							ondrop={handleDrop}>
+							{#if imageFile && imagePreview}
+								<button class="clear-btn" onclick={(e) => { e.stopPropagation(); clearSelection(); }} aria-label="Clear">✕</button>
+								<img src={imagePreview} alt="Preview" class="preview-img" />
+								<div class="file-meta">
+									<span class="file-name">{imageFile.name}</span>
+									<span class="file-size">{(imageFile.size / 1024).toFixed(0)} KB</span>
+								</div>
+							{:else}
+								<div class="drop-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+								<p class="drop-label">Drop or <span class="browse-link">browse</span></p>
+								<p class="drop-hint">PNG, JPG, WebP</p>
+							{/if}
+						</div>
+						{#if imageFile}
+							<div class="mt-2 flex justify-end">
+								<button onclick={uploadImage} disabled={saving}
+									class="inline-flex items-center gap-1.5 rounded-lg bg-gray-800 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-gray-700 disabled:opacity-40">
+									{#if saving}<Spinner size={12} />{/if}
+									{saving ? 'Uploading…' : 'Upload'}
+								</button>
+							</div>
+						{/if}
 					{/if}
 				{/if}
 			</div>
@@ -334,36 +408,54 @@
 						>Remove</button>
 					</div>
 				{:else}
-					<input type="file" accept="image/*" bind:this={breweryFileInput}
-						onchange={(e) => handleBreweryFileSelect((e.currentTarget as HTMLInputElement).files?.[0])}
-						class="sr-only" />
-					<div class="dropzone" class:drag-over={breweryDragOver} role="button" tabindex="0"
-						onclick={() => breweryFileInput?.click()}
-						onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && breweryFileInput?.click()}
-						ondragover={(e) => { e.preventDefault(); breweryDragOver = true; }}
-						ondragleave={(e) => { const r = e.relatedTarget as Node|null; if (!r || !(e.currentTarget as HTMLElement).contains(r)) breweryDragOver = false; }}
-						ondrop={handleBreweryDrop}>
-						{#if breweryFile && breweryPreview}
-							<button class="clear-btn" onclick={(e) => { e.stopPropagation(); clearBrewerySelection(); }} aria-label="Clear">✕</button>
-							<img src={breweryPreview} alt="Preview" class="preview-img" />
-							<div class="file-meta">
-								<span class="file-name">{breweryFile.name}</span>
-								<span class="file-size">{(breweryFile.size / 1024).toFixed(0)} KB</span>
-							</div>
-						{:else}
-							<div class="drop-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
-							<p class="drop-label">Drop or <span class="browse-link">browse</span></p>
-							<p class="drop-hint">PNG, JPG, WebP</p>
-						{/if}
-					</div>
-					{#if breweryFile}
-						<div class="mt-2 flex justify-end">
-							<button onclick={uploadBreweryImage} disabled={saving}
+					{#if remoteImageUrlsEnabled}
+						<div class="mode-toggle">
+							<button type="button" class="mode-btn {breweryMode === 'upload' ? 'active' : ''}" onclick={() => (breweryMode = 'upload')}>Upload</button>
+							<button type="button" class="mode-btn {breweryMode === 'url' ? 'active' : ''}" onclick={() => (breweryMode = 'url')}>Paste URL</button>
+						</div>
+					{/if}
+					{#if remoteImageUrlsEnabled && breweryMode === 'url'}
+						<div class="url-import">
+							<input type="url" placeholder="https://example.com/logo.png" bind:value={breweryUrlValue}
+								class="url-input" />
+							<button onclick={importBreweryImageFromUrl} disabled={importingBreweryImage || !breweryUrlValue.trim()}
 								class="inline-flex items-center gap-1.5 rounded-lg bg-gray-800 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-gray-700 disabled:opacity-40">
-								{#if saving}<Spinner size={12} />{/if}
-								{saving ? 'Uploading…' : 'Upload'}
+								{#if importingBreweryImage}<Spinner size={12} />{/if}
+								{importingBreweryImage ? 'Importing…' : 'Import'}
 							</button>
 						</div>
+					{:else}
+						<input type="file" accept="image/*" bind:this={breweryFileInput}
+							onchange={(e) => handleBreweryFileSelect((e.currentTarget as HTMLInputElement).files?.[0])}
+							class="sr-only" />
+						<div class="dropzone" class:drag-over={breweryDragOver} role="button" tabindex="0"
+							onclick={() => breweryFileInput?.click()}
+							onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && breweryFileInput?.click()}
+							ondragover={(e) => { e.preventDefault(); breweryDragOver = true; }}
+							ondragleave={(e) => { const r = e.relatedTarget as Node|null; if (!r || !(e.currentTarget as HTMLElement).contains(r)) breweryDragOver = false; }}
+							ondrop={handleBreweryDrop}>
+							{#if breweryFile && breweryPreview}
+								<button class="clear-btn" onclick={(e) => { e.stopPropagation(); clearBrewerySelection(); }} aria-label="Clear">✕</button>
+								<img src={breweryPreview} alt="Preview" class="preview-img" />
+								<div class="file-meta">
+									<span class="file-name">{breweryFile.name}</span>
+									<span class="file-size">{(breweryFile.size / 1024).toFixed(0)} KB</span>
+								</div>
+							{:else}
+								<div class="drop-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+								<p class="drop-label">Drop or <span class="browse-link">browse</span></p>
+								<p class="drop-hint">PNG, JPG, WebP</p>
+							{/if}
+						</div>
+						{#if breweryFile}
+							<div class="mt-2 flex justify-end">
+								<button onclick={uploadBreweryImage} disabled={saving}
+									class="inline-flex items-center gap-1.5 rounded-lg bg-gray-800 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-gray-700 disabled:opacity-40">
+									{#if saving}<Spinner size={12} />{/if}
+									{saving ? 'Uploading…' : 'Upload'}
+								</button>
+							</div>
+						{/if}
 					{/if}
 				{/if}
 			</div>
@@ -418,6 +510,58 @@
 		width: 20px;
 		height: 36px;
 		border-radius: 50% / 14%;
+	}
+
+	/* Upload/URL mode toggle */
+
+	.mode-toggle {
+		display: flex;
+		gap: 0.25rem;
+		margin-bottom: 0.75rem;
+	}
+
+	.mode-btn {
+		flex: 1;
+		padding: 0.35rem 0.5rem;
+		border-radius: 6px;
+		border: 1.5px solid #e5e7eb;
+		background: #fff;
+		cursor: pointer;
+		font-size: 0.75rem;
+		font-weight: 500;
+		color: #6b7280;
+		transition: border-color 0.15s, color 0.15s, background 0.15s;
+	}
+
+	.mode-btn:hover {
+		border-color: #93c5fd;
+		color: #3b82f6;
+	}
+
+	.mode-btn.active {
+		border-color: #3b82f6;
+		background: #eff6ff;
+		color: #2563eb;
+	}
+
+	.url-import {
+		display: flex;
+		gap: 0.5rem;
+	}
+
+	.url-input {
+		flex: 1;
+		min-width: 0;
+		border-radius: 8px;
+		border: 1px solid #d1d5db;
+		padding: 0.5rem 0.75rem;
+		font-size: 0.85rem;
+	}
+
+	.url-input:focus {
+		outline: none;
+		border-color: #3b82f6;
+		box-shadow: 0 0 0 1px #3b82f6;
 	}
 
 	.dropzone {

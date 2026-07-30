@@ -8,12 +8,16 @@ GPIO-based kegerator monitoring system: a Raspberry Pi GPIO agent sends pulse da
 
 ## Commands
 
+### Task runner
+
+A [Task](https://taskfile.dev) `Taskfile.yml` wraps the commands below for convenience — run `task --list` from the repo root to see all available tasks (`task test`, `task lint`, `task dev` to run the server + web dev server together, etc.). The raw commands below always work too.
+
 ### Backend (Go — from `gopints/`)
 
 ```bash
 go build -o kegerator-agent ./cmd/agent     # Pi-only GPIO binary
 go build -o kegerator-server ./cmd/server   # REST/WS server binary
-go run ./cmd/server --simulate              # Server on :8080 with /dev endpoints
+KEGERATOR_SIMULATE=true go run ./cmd/server # Server on :8080 with /dev endpoints
 go run ./cmd/agent simulate --tap 1 --pulses 450 --hz 10 --interval 30s
 ```
 
@@ -63,8 +67,8 @@ Raspberry Pi GPIO pin
 - Tap ID is `uint8` (1–255) throughout all layers
 - Volume is always in milliliters: `pulses / PulsesPerLiter * 1000` (default 450 pulses/liter)
 - SQLite timestamps are milliseconds since epoch; UDP protocol uses nanoseconds
-- The agent binary only compiles on Linux (`requester_linux.go` uses `go-gpiocdev`); use `--simulate` flag on other platforms
-- `/api/dev/pour/{id}` endpoint only registers when server starts with `--simulate`
+- The agent binary only compiles on Linux (`requester_linux.go` uses `go-gpiocdev`); use `agent simulate` on other platforms
+- `/api/dev/pour/{id}` endpoint only registers when the server starts with `KEGERATOR_SIMULATE=true`
 
 ### Test Patterns
 

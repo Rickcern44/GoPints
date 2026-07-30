@@ -1,0 +1,30 @@
+# Requires the Task CLI: https://taskfile.dev/installation
+version: '3'
+
+includes:
+  gopints:
+    taskfile: ./gopints
+    dir: ./gopints
+  web:
+    taskfile: ./web
+    dir: ./web
+
+tasks:
+  test:
+    desc: Run backend tests and frontend checks (matches CI)
+    cmds:
+      - task: gopints:test
+      - task: web:check
+      - task: web:lint
+
+  lint:
+    desc: Run backend and frontend linters (matches CI)
+    cmds:
+      - task: gopints:lint
+      - task: web:lint
+
+  dev:
+    desc: Run the server (simulate mode) and web dev server together
+    deps:
+      - gopints:simulate
+      - web:dev

@@ -624,6 +624,119 @@ func TestHandleDeleteKegImage(t *testing.T) {
 	}
 }
 
+// --- Keg image from URL ---
+
+func featureFlagStore(name string, enabled bool) func(_ context.Context, key string) (string, error) {
+	return func(_ context.Context, key string) (string, error) {
+		if key == "feature."+name && enabled {
+			return "true", nil
+		}
+		return "", fmt.Errorf("not found")
+	}
+}
+
+func TestHandleSetKegImageFromURL_FeatureDisabled_404(t *testing.T) {
+	store := &mockStore{getSettingFn: featureFlagStore("remote_image_urls", false)}
+	ts := newTestServer(t, store, false)
+	resp := doAuthed(t, ts, "POST", "/api/kegs/1/image/from-url", map[string]string{"url": "http://example.com/beer.png"})
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("want 404 when flag disabled, got %d", resp.StatusCode)
+	}
+}
+
+func TestHandleSetKegImageFromURL_RequiresAuth(t *testing.T) {
+	store := &mockStore{getSettingFn: featureFlagStore("remote_image_urls", true)}
+	ts := newTestServer(t, store, false)
+	resp := do(t, ts, "POST", "/api/kegs/1/image/from-url", map[string]string{"url": "http://example.com/beer.png"})
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("want 401 when unauthenticated, got %d", resp.StatusCode)
+	}
+}
+
+func TestHandleSetKegImageFromURL_FetchFailure_NoStoreCall(t *testing.T) {
+	// setKegImageFn deliberately left nil: mockStore panics if it's called,
+	// so this also asserts the store is never touched on fetch failure.
+	store := &mockStore{getSettingFn: featureFlagStore("remote_image_urls", true)}
+	ts := newTestServer(t, store, false)
+	resp := doAuthed(t, ts, "POST", "/api/kegs/1/image/from-url", map[string]string{"url": "http://127.0.0.1:1/beer.png"})
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("want 400 for a loopback-rejected URL, got %d", resp.StatusCode)
+	}
+}
+
+func TestHandleSetKegImageFromURL_OK(t *testing.T) {
+	restore := api.SetCheckHostIsPublicForTest(func(string) error { return nil })
+	defer restore()
+
+	imgSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'})
+	}))
+	defer imgSrv.Close()
+
+	var gotData []byte
+	var gotMime string
+	store := &mockStore{
+		getSettingFn: featureFlagStore("remote_image_urls", true),
+		setKegImageFn: func(_ context.Context, _ int64, data []byte, mimeType string) error {
+			gotData, gotMime = data, mimeType
+			return nil
+		},
+	}
+	ts := newTestServer(t, store, false)
+	resp := doAuthed(t, ts, "POST", "/api/kegs/1/image/from-url", map[string]string{"url": imgSrv.URL})
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent {
+		t.Errorf("want 204, got %d", resp.StatusCode)
+	}
+	if gotMime != "image/png" {
+		t.Errorf("want stored mime type image/png, got %q", gotMime)
+	}
+	if len(gotData) != 8 {
+		t.Errorf("want 8 bytes stored, got %d", len(gotData))
+	}
+}
+
+func TestHandleSetBreweryImageFromURL_FeatureDisabled_404(t *testing.T) {
+	store := &mockStore{getSettingFn: featureFlagStore("remote_image_urls", false)}
+	ts := newTestServer(t, store, false)
+	resp := doAuthed(t, ts, "POST", "/api/kegs/1/brewery-image/from-url", map[string]string{"url": "http://example.com/logo.png"})
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("want 404 when flag disabled, got %d", resp.StatusCode)
+	}
+}
+
+func TestHandleSetBreweryImageFromURL_OK(t *testing.T) {
+	restore := api.SetCheckHostIsPublicForTest(func(string) error { return nil })
+	defer restore()
+
+	imgSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'})
+	}))
+	defer imgSrv.Close()
+
+	var gotMime string
+	store := &mockStore{
+		getSettingFn: featureFlagStore("remote_image_urls", true),
+		setBreweryImageFn: func(_ context.Context, _ int64, _ []byte, mimeType string) error {
+			gotMime = mimeType
+			return nil
+		},
+	}
+	ts := newTestServer(t, store, false)
+	resp := doAuthed(t, ts, "POST", "/api/kegs/1/brewery-image/from-url", map[string]string{"url": imgSrv.URL})
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent {
+		t.Errorf("want 204, got %d", resp.StatusCode)
+	}
+	if gotMime != "image/png" {
+		t.Errorf("want stored mime type image/png, got %q", gotMime)
+	}
+}
+
 // --- Pours ---
 
 func TestHandleListPours_All(t *testing.T) {
