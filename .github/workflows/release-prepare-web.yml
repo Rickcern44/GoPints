@@ -1,20 +1,21 @@
 name: Prepare web Release
 
 # On every push to main touching web/ (excluding its own infra manifest,
-# to avoid re-triggering off the tag bump this workflow itself proposes):
+# which only ever changes via release.yml's post-build direct commit, never
+# via this workflow):
 #   - if this push is the merge of a release-prep/web-v* branch, finalize
 #     the release (tag + GitHub release, which fires release.yml)
-#   - otherwise, compute the next version/changelog/infra-tag and propose (or
-#     update) a single consolidated PR
+#   - otherwise, compute the next version/changelog and propose (or update)
+#     a release-prep PR. The infra manifest's image tag is intentionally NOT
+#     bumped here — that only happens after release.yml confirms the image
+#     actually pushed to GHCR, so ArgoCD (auto-sync enabled) never sees a
+#     tag that doesn't exist yet.
 on:
   push:
     branches: [main]
     paths:
       - 'web/**'
       - '!web/infrastructure/**'
-
-env:
-  REGISTRY: ghcr.io
 
 jobs:
   release-prepare:
@@ -122,11 +123,6 @@ jobs:
           config: web/cliff.toml
           args: --tag web-v${{ steps.gitversion.outputs.semVer }}
 
-      - name: Update infra manifest image tag
-        if: steps.detect.outputs.is_finalize == 'false' && steps.check.outputs.should_release == 'true'
-        run: |
-          sed -i -E "s#(image: ${{ env.REGISTRY }}/rickcern44/gopints-web:).*#\1${{ steps.gitversion.outputs.semVer }}#" web/infrastructure/deploy/deployment.yaml
-
       - name: Bump package.json version
         if: steps.detect.outputs.is_finalize == 'false' && steps.check.outputs.should_release == 'true'
         run: |
@@ -142,8 +138,7 @@ jobs:
           body: |
             Automated release-prep for `web` v${{ steps.gitversion.outputs.semVer }}.
 
-            Includes the `CHANGELOG.md` entry, the infrastructure deployment manifest image-tag bump, and the `package.json` version bump together. Merging this PR creates the `web-v${{ steps.gitversion.outputs.semVer }}` tag and publishes the GitHub Release.
+            Includes the `CHANGELOG.md` entry and the `package.json` version bump. Merging this PR creates the `web-v${{ steps.gitversion.outputs.semVer }}` tag and publishes the GitHub Release, which builds and pushes the image — the Kubernetes deployment manifest's image tag is bumped automatically (as a direct commit to `main`, by `release.yml`) only after that image push succeeds, so ArgoCD never sees a tag that doesn't exist in GHCR yet.
           add-paths: |
             web/CHANGELOG.md
-            web/infrastructure/deploy/deployment.yaml
             web/package.json
