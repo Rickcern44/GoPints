@@ -58,6 +58,30 @@ jobs:
           gh release create "$TAG" --target main --title "$TAG" --notes-file /tmp/release-notes.md
 
       # ── Propose: ordinary push, compute next version and open/update PR ──
+      # GitVersion has no native path-scoped commit filtering (its "ignore"
+      # config only supports "sha"/"commits-before", not "paths"), so we
+      # determine the bump type ourselves from a path-scoped git log and
+      # force it via the "increment" override — GitVersion still owns
+      # finding the last matching tag (via tag-prefix) and the correct
+      # semver arithmetic for that increment.
+      - name: Determine gopints increment type
+        if: steps.detect.outputs.is_finalize == 'false'
+        id: bumptype
+        run: |
+          LAST_TAG="$(git tag --list 'gopints-v*' --sort=-v:refname | head -1)"
+          RANGE="${LAST_TAG:+$LAST_TAG..}HEAD"
+          COMMITS="$(git log $RANGE --format='%B' -- gopints/ ':!gopints/infrastructure/*')"
+          if echo "$COMMITS" | grep -qE '^[a-z]+(\([^)]*\))?!:|BREAKING CHANGE:'; then
+            INCREMENT="Major"
+          elif echo "$COMMITS" | grep -qE '^feat(\([^)]*\))?:'; then
+            INCREMENT="Minor"
+          elif echo "$COMMITS" | grep -qE '^fix(\([^)]*\))?:'; then
+            INCREMENT="Patch"
+          else
+            INCREMENT="None"
+          fi
+          echo "increment=${INCREMENT}" >> "$GITHUB_OUTPUT"
+
       - name: Install GitVersion
         if: steps.detect.outputs.is_finalize == 'false'
         uses: gittools/actions/gitversion/setup@v4
@@ -70,6 +94,7 @@ jobs:
         uses: gittools/actions/gitversion/execute@v4
         with:
           configFilePath: gopints/GitVersion.yml
+          overrideConfig: increment=${{ steps.bumptype.outputs.increment }}
 
       - name: Check for releasable changes
         if: steps.detect.outputs.is_finalize == 'false'
