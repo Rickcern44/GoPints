@@ -59,80 +59,73 @@
 	}
 </script>
 
-<div class="max-w-5xl">
-	<h1 class="mb-6 text-2xl font-bold">Pour History</h1>
+<div class="max-w-3xl">
+	<div class="console-heading">
+		<h1>Pour Log</h1>
+		<span class="count">{pours.length} entries</span>
+	</div>
 
-	<div class="mb-4 flex items-center gap-3">
-		<select
-			bind:value={tapFilter}
-			class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-		>
-			<option value="">All taps</option>
-			{#each taps as tap (tap.id)}
-				<option value={String(tap.id)}>Tap {tap.id}{tap.keg ? ` — ${tap.keg.beer_name}` : ''}</option>
-			{/each}
-		</select>
-		<button
-			onclick={applyFilter}
-			class="rounded-lg bg-gray-800 px-4 py-2 text-sm font-semibold text-white transition-colors duration-150 hover:bg-gray-700 active:bg-gray-600"
-		>
-			Filter
-		</button>
+	<div class="mb-5 flex items-center gap-3">
+		<label class="field flex-1 sm:flex-none">
+			<span class="cap">Tap</span>
+			<select bind:value={tapFilter}>
+				<option value="">All taps</option>
+				{#each taps as tap (tap.id)}
+					<option value={String(tap.id)}>Tap {tap.id}{tap.keg ? ` — ${tap.keg.beer_name}` : ''}</option>
+				{/each}
+			</select>
+		</label>
+		<button onclick={applyFilter} class="btn-console self-end">Filter</button>
 	</div>
 
 	{#if error}
-		<div class="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+		<div class="mb-4 rounded-lg bg-error-bg px-4 py-3 text-sm text-error">{error}</div>
 	{/if}
 
 	{#if loading}
-		<div class="flex items-center gap-2 text-sm text-gray-500"><Spinner size={16} /> Loading…</div>
+		<div class="flex items-center gap-2 text-sm text-fg-muted"><Spinner size={16} /> Loading…</div>
 	{:else if pours.length === 0}
-		<p class="text-gray-500">No pours recorded yet.</p>
+		<p class="text-fg-muted">No pours recorded yet.</p>
 	{:else}
-		<div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-			<table class="w-full text-sm">
-				<thead class="border-b border-gray-200 bg-gray-50">
-					<tr>
-						<th class="px-4 py-3 text-left font-medium text-gray-600">Tap</th>
-						<th class="px-4 py-3 text-left font-medium text-gray-600">Volume</th>
-						<th class="px-4 py-3 text-left font-medium text-gray-600">Started</th>
-						<th class="px-4 py-3 text-left font-medium text-gray-600">Ended</th>
-						<th class="px-4 py-3"></th>
-					</tr>
-				</thead>
-				<tbody class="divide-y divide-gray-100">
-					{#each pours as pour (pour.id)}
-						<tr class="hover:bg-gray-50">
-							<td class="px-4 py-3 font-medium">#{pour.tap_id}</td>
-							<td class="px-4 py-3">{pour.volume_ml.toFixed(0)} mL</td>
-							<td class="px-4 py-3 text-gray-600">{formatDate(pour.started_at)}</td>
-							<td class="px-4 py-3 text-gray-600">{formatDate(pour.ended_at)}</td>
-							<td class="px-4 py-3 text-right">
-								<button onclick={() => deletePour(pour.id)} class="text-red-600 hover:underline">
-									Delete
-								</button>
-							</td>
-						</tr>
-					{/each}
-				</tbody>
-			</table>
+		<div class="log-panel">
+			{#each pours as pour (pour.id)}
+				<div class="log-row flex items-center gap-4">
+					<div class="readout-badge" style="--rb-size: 2.15rem; font-size: 0.85rem;">{pour.tap_id}</div>
+					<div class="flex-1 min-w-0">
+						<div class="font-mono text-base font-bold text-fg">{pour.volume_ml.toFixed(0)} mL</div>
+						<div class="text-xs font-mono text-fg-muted">
+							{formatDate(pour.started_at)} → {formatDate(pour.ended_at)}
+						</div>
+					</div>
+					<button onclick={() => deletePour(pour.id)} class="btn-console-ghost danger">Void</button>
+				</div>
+			{/each}
 		</div>
 
-		<div class="mt-4 flex gap-3">
+		<div class="mt-5 flex gap-3">
 			<button
 				onclick={() => { offset = Math.max(0, offset - PAGE_SIZE); loadPours(); }}
 				disabled={offset === 0}
-				class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium transition-colors duration-150 hover:bg-gray-100 active:bg-gray-200 disabled:opacity-40"
+				class="btn-console-ghost"
 			>
 				← Previous
 			</button>
 			<button
 				onclick={() => { offset += PAGE_SIZE; loadPours(); }}
 				disabled={!hasMore}
-				class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium transition-colors duration-150 hover:bg-gray-100 active:bg-gray-200 disabled:opacity-40"
+				class="btn-console-ghost"
 			>
 				Next →
 			</button>
 		</div>
 	{/if}
 </div>
+
+<style>
+	.log-panel {
+		background: var(--color-panel);
+		border: 1px solid var(--color-line);
+		border-top: 2px solid var(--color-accent);
+		border-radius: 3px;
+	}
+</style>

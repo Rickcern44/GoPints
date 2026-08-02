@@ -10,6 +10,7 @@
 	let hasImage = $derived(!!keg.image_mime_type);
 	let hasBreweryImage = $derived(!!keg.brewery_image_mime_type);
 	let imageStyle = $derived(keg.image_style || 'circle');
+	let statusLed = $derived(pct > 50 ? 'good' : pct > 20 ? 'warn' : 'critical');
 </script>
 
 <div class="card">
@@ -24,7 +25,7 @@
 		{/if}
 
 		<div class="info">
-			<span class="tap-badge">TAP {tap.id}</span>
+			<span class="tap-badge"><span class="led {statusLed}"></span>TAP {tap.id}</span>
 
 			{#if hasImage}
 				<img src="/api/kegs/{keg.id}/image" alt={keg.beer_name} class="beer-img beer-img-{imageStyle}" />
@@ -41,12 +42,7 @@
 		<div class="divider"></div>
 
 		<div class="stats">
-			<div class="gauge-outer">
-				<LevelGauge pctRemaining={pct} />
-			</div>
-			<div class="pct-row">
-				<span class="pct-num">{pct.toFixed(0)}</span><span class="pct-sym">%</span>
-			</div>
+			<LevelGauge pctRemaining={pct} />
 			<p class="remaining">{remainingL}L remaining</p>
 			{#if stats}
 				<p class="pours">{stats.pour_count} {stats.pour_count !== 1 ? 'pours' : 'pour'}</p>
@@ -56,18 +52,24 @@
 </div>
 
 <style>
-	@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,700&display=swap');
-
 	.card {
 		width: 100%;
 		height: 100%;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: #0a0806;
+		background: var(--color-void);
 		background-image:
-			radial-gradient(ellipse 80% 60% at 75% 50%, rgba(160, 100, 8, 0.08) 0%, transparent 65%),
-			radial-gradient(ellipse 40% 40% at 12% 50%, rgba(80, 50, 5, 0.05) 0%, transparent 60%);
+			linear-gradient(
+				color-mix(in srgb, var(--color-line) 35%, transparent) 1px,
+				transparent 1px
+			),
+			linear-gradient(
+				90deg,
+				color-mix(in srgb, var(--color-line) 35%, transparent) 1px,
+				transparent 1px
+			);
+		background-size: 48px 48px;
 	}
 
 	.inner {
@@ -90,25 +92,27 @@
 		width: 150px;
 		flex-shrink: 0;
 		padding: 1.5rem 1rem;
-		border-radius: 16px;
-		background: linear-gradient(160deg, rgba(200, 130, 26, 0.09), rgba(160, 100, 8, 0.03));
-		border: 1px solid rgba(200, 130, 26, 0.18);
+		border-radius: 3px;
+		background: var(--color-panel);
+		border: 1px solid var(--color-line);
+		border-top: 2px solid var(--color-accent);
 	}
 
 	.plaque-logo {
 		width: 120px;
 		height: 120px;
 		object-fit: contain;
-		border-radius: 12px;
+		border-radius: 3px;
 		background: rgba(255, 255, 255, 0.04);
 		padding: 0.5rem;
 	}
 
 	.plaque-name {
-		font-size: 0.85rem;
-		font-weight: 600;
-		letter-spacing: 0.04em;
-		color: rgba(210, 175, 110, 0.75);
+		font-family: var(--font-mono);
+		font-size: 0.8rem;
+		font-weight: 500;
+		letter-spacing: 0.02em;
+		color: var(--color-fg-muted);
 		text-align: center;
 		margin: 0;
 		display: -webkit-box;
@@ -132,21 +136,23 @@
 	.tap-badge {
 		display: inline-flex;
 		align-items: center;
-		padding: 0.2rem 0.7rem;
-		border-radius: 999px;
-		font-size: 0.65rem;
+		gap: 0.45rem;
+		padding: 0.25rem 0.7rem;
+		border-radius: 3px;
+		font-family: var(--font-mono);
+		font-size: 0.68rem;
 		font-weight: 700;
-		letter-spacing: 0.22em;
+		letter-spacing: 0.18em;
 		text-transform: uppercase;
-		color: rgba(200, 130, 26, 0.9);
-		border: 1px solid rgba(200, 130, 26, 0.3);
-		background: rgba(200, 130, 26, 0.07);
+		color: var(--color-fg-muted);
+		border: 1px solid var(--color-line);
+		background: var(--color-panel);
 		width: fit-content;
 	}
 
 	.beer-img {
 		object-fit: cover;
-		border: 2px solid rgba(200, 130, 26, 0.25);
+		border: 1px solid var(--color-line);
 		margin-bottom: 0.15rem;
 	}
 
@@ -159,7 +165,7 @@
 	.beer-img-square {
 		width: 90px;
 		height: 90px;
-		border-radius: 8px;
+		border-radius: 4px;
 	}
 
 	.beer-img-can {
@@ -169,12 +175,11 @@
 	}
 
 	.name {
-		font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
+		font-family: var(--font-display);
 		font-size: clamp(2.5rem, 5vw, 5rem);
 		font-weight: 700;
-		font-style: italic;
-		color: #f5ead8;
-		line-height: 1.1;
+		color: var(--color-fg);
+		line-height: 1.05;
 		margin: 0;
 		word-break: break-word;
 	}
@@ -189,15 +194,17 @@
 	.tag {
 		padding: 0.2rem 0.6rem;
 		border-radius: 3px;
-		font-size: 0.78rem;
-		background: rgba(255, 255, 255, 0.05);
-		color: rgba(255, 255, 255, 0.38);
-		letter-spacing: 0.04em;
+		font-family: var(--font-mono);
+		font-size: 0.75rem;
+		background: var(--color-panel);
+		border: 1px solid var(--color-line);
+		color: var(--color-fg-muted);
+		letter-spacing: 0.02em;
 	}
 
 	.tag-abv {
-		background: rgba(200, 130, 26, 0.08);
-		color: rgba(200, 130, 26, 0.65);
+		border-color: color-mix(in srgb, var(--color-accent) 40%, transparent);
+		color: var(--color-accent);
 	}
 
 	/* Vertical divider */
@@ -206,7 +213,7 @@
 		width: 1px;
 		height: 55%;
 		min-height: 180px;
-		background: linear-gradient(to bottom, transparent, rgba(200, 130, 26, 0.15), transparent);
+		background: var(--color-line);
 		flex-shrink: 0;
 	}
 
@@ -216,48 +223,23 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 0.5rem;
+		gap: 0.85rem;
 		flex-shrink: 0;
 	}
 
-	.gauge-outer {
-		transform: scale(1.25);
-		margin: 2rem 0;
-	}
-
-	.pct-row {
-		display: flex;
-		align-items: flex-start;
-		line-height: 1;
-	}
-
-	.pct-num {
-		font-size: clamp(4rem, 7vw, 6.5rem);
-		font-weight: 900;
-		color: #f5ead8;
-		font-variant-numeric: tabular-nums;
-		line-height: 1;
-	}
-
-	.pct-sym {
-		font-size: clamp(1.4rem, 2.5vw, 2rem);
-		font-weight: 700;
-		color: rgba(245, 234, 216, 0.38);
-		margin-top: 0.4rem;
-		margin-left: 0.15rem;
-	}
-
 	.remaining {
+		font-family: var(--font-mono);
 		font-size: clamp(0.85rem, 1.4vw, 1.05rem);
-		color: rgba(210, 175, 110, 0.5);
+		color: var(--color-fg-muted);
 		margin: 0;
-		letter-spacing: 0.04em;
+		letter-spacing: 0.02em;
 	}
 
 	.pours {
+		font-family: var(--font-mono);
 		font-size: clamp(0.7rem, 1.1vw, 0.85rem);
-		color: rgba(255, 255, 255, 0.22);
+		color: color-mix(in srgb, var(--color-fg-muted) 65%, transparent);
 		margin: 0;
-		letter-spacing: 0.04em;
+		letter-spacing: 0.02em;
 	}
 </style>

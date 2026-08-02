@@ -1,2 +1,302 @@
+@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import 'tailwindcss';
 @plugin '@tailwindcss/typography';
+
+@theme {
+	/* ─── "Precision Tap Console" — one dark instrument-panel surface,
+	   shared by the kiosk display and the admin dashboard. ─── */
+
+	/* Surfaces (cool graphite, not warm oak) */
+	--color-void: #0a0d0f;
+	--color-panel: #12171a;
+	--color-panel-raised: #1a2226;
+	--color-line: #2a3438;
+
+	/* Text */
+	--color-fg: #e8edf0;
+	--color-fg-muted: #7c8a90;
+
+	/* Brand accent — copper, now used sparingly as a signal color */
+	--color-accent: #c8821a;
+
+	/* Status/telemetry signal colors */
+	--color-signal-good: #35d48c;
+	--color-signal-warn: var(--color-accent);
+	--color-signal-critical: #ff5d5d;
+
+	/* Aliases so existing form/status usage reads naturally */
+	--color-error: var(--color-signal-critical);
+	--color-error-bg: #3a1414;
+	--color-success: var(--color-signal-good);
+	--color-success-bg: #0f2f22;
+
+	/* LevelGauge ring tiers */
+	--color-gauge-healthy: var(--color-signal-good);
+	--color-gauge-low: var(--color-accent);
+	--color-gauge-critical: var(--color-signal-critical);
+
+	/* Type */
+	--font-display: 'Chakra Petch', 'Segoe UI', sans-serif;
+	--font-brand: 'Chakra Petch', 'Segoe UI', sans-serif;
+	--font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+}
+
+/*
+ * ─── Precision Tap Console — shared component classes ──────────────────
+ * One dark technical-monitoring language for the whole app: sharp
+ * rectangular panels, monospace data readouts, LED status dots, and a
+ * copper accent used as a signal color rather than a decorative brand
+ * wash. Consumed directly by kiosk and admin route templates.
+ */
+
+.console-heading {
+	display: flex;
+	align-items: baseline;
+	gap: 0.85rem;
+	margin-bottom: 1.5rem;
+	padding-bottom: 0.85rem;
+	border-bottom: 1px solid var(--color-line);
+}
+
+.console-heading h1 {
+	font-family: var(--font-display);
+	font-size: 1.6rem;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--color-fg);
+	white-space: nowrap;
+	margin: 0;
+}
+
+.console-heading .count {
+	flex: 1;
+	font-family: var(--font-mono);
+	font-size: 0.78rem;
+	color: var(--color-fg-muted);
+	text-align: right;
+}
+
+.led {
+	display: inline-block;
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	flex-shrink: 0;
+	background: var(--color-fg-muted);
+	box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+}
+
+.led.good {
+	background: var(--color-signal-good);
+	box-shadow: 0 0 6px color-mix(in srgb, var(--color-signal-good) 80%, transparent);
+}
+
+.led.warn {
+	background: var(--color-accent);
+	box-shadow: 0 0 6px color-mix(in srgb, var(--color-accent) 80%, transparent);
+}
+
+.led.critical {
+	background: var(--color-signal-critical);
+	box-shadow: 0 0 6px color-mix(in srgb, var(--color-signal-critical) 80%, transparent);
+}
+
+.btn-console {
+	font-family: var(--font-display);
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	font-size: 0.8rem;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	background: var(--color-accent);
+	color: var(--color-void);
+	border: 1px solid var(--color-accent);
+	border-radius: 3px;
+	cursor: pointer;
+	padding: 0.55rem 1.25rem;
+	transition:
+		box-shadow 0.15s ease,
+		filter 0.15s ease,
+		opacity 0.15s ease;
+}
+
+.btn-console:hover:not(:disabled) {
+	filter: brightness(1.1);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 25%, transparent);
+}
+
+.btn-console:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.btn-console-ghost {
+	font-family: var(--font-display);
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	font-size: 0.75rem;
+	background: transparent;
+	color: var(--color-fg-muted);
+	cursor: pointer;
+	border: 1px solid var(--color-line);
+	border-radius: 3px;
+	padding: 0.5rem 1rem;
+	transition:
+		border-color 0.15s,
+		color 0.15s,
+		box-shadow 0.15s;
+}
+
+.btn-console-ghost:hover:not(:disabled) {
+	border-color: var(--color-accent);
+	color: var(--color-accent);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 15%, transparent);
+}
+
+.btn-console-ghost.danger:hover:not(:disabled) {
+	border-color: var(--color-signal-critical);
+	color: var(--color-signal-critical);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-signal-critical) 15%, transparent);
+}
+
+.btn-console-ghost:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+/* Readout badge — a tap ID rendered like an instrument-panel connector plate */
+.readout-badge {
+	--rb-size: 2.5rem;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	position: relative;
+	width: var(--rb-size);
+	height: var(--rb-size);
+	background: var(--color-panel-raised);
+	border: 1px solid var(--color-line);
+	clip-path: polygon(20% 0, 100% 0, 100% 80%, 80% 100%, 0 100%, 0 20%);
+	color: var(--color-fg);
+	font-family: var(--font-mono);
+	font-weight: 700;
+	font-size: 1rem;
+	flex-shrink: 0;
+}
+
+.panel {
+	background: var(--color-panel);
+	border: 1px solid var(--color-line);
+	border-top: 2px solid var(--color-accent);
+	border-radius: 3px;
+	padding: 1.5rem;
+}
+
+.panel h2 {
+	font-family: var(--font-display);
+	font-weight: 600;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	font-size: 0.95rem;
+	color: var(--color-fg);
+	margin: 0 0 1rem;
+}
+
+.data-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-family: var(--font-mono);
+	font-size: 0.85rem;
+}
+
+.data-table thead th {
+	text-align: left;
+	font-family: var(--font-display);
+	font-weight: 600;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	font-size: 0.68rem;
+	color: var(--color-fg-muted);
+	padding: 0.6rem 0.75rem;
+	border-bottom: 1px solid var(--color-line);
+}
+
+.data-table tbody tr {
+	border-bottom: 1px solid var(--color-line);
+	transition: background 0.1s;
+}
+
+.data-table tbody tr:last-child {
+	border-bottom: none;
+}
+
+.data-table tbody tr:hover {
+	background: var(--color-panel-raised);
+}
+
+.data-table td {
+	padding: 0.65rem 0.75rem;
+	color: var(--color-fg);
+}
+
+.field {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+}
+
+.field .cap {
+	font-family: var(--font-display);
+	font-weight: 600;
+	font-size: 0.68rem;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--color-fg-muted);
+}
+
+.field input,
+.field select,
+.field textarea {
+	font-family: var(--font-mono);
+	font-size: 0.9rem;
+	color: var(--color-fg);
+	background: var(--color-void);
+	border: 1px solid var(--color-line);
+	border-radius: 3px;
+	padding: 0.5rem 0.65rem;
+	transition:
+		border-color 0.15s,
+		box-shadow 0.15s;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+	outline: none;
+	border-color: var(--color-accent);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 20%, transparent);
+}
+
+/* System log row (pour history): a terminal-style log line */
+.log-row {
+	display: flex;
+	align-items: center;
+	gap: 0.9rem;
+	padding: 0.7rem 0.9rem;
+	border-bottom: 1px solid var(--color-line);
+	border-left: 2px solid transparent;
+	font-family: var(--font-mono);
+	transition: border-color 0.1s, background 0.1s;
+}
+
+.log-row:last-child {
+	border-bottom: none;
+}
+
+.log-row:hover {
+	border-left-color: var(--color-accent);
+	background: var(--color-panel-raised);
+}
