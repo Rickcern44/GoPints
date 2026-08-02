@@ -229,68 +229,62 @@
 </script>
 
 <div class="max-w-xl">
-	<a href="/admin/kegs" class="mb-6 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900">
+	<a href="/admin/kegs" class="mb-6 inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg">
 		← Back to Kegs
 	</a>
 
 	{#if loading}
-		<div class="flex items-center gap-2 text-sm text-gray-500"><Spinner size={16} /> Loading…</div>
+		<div class="flex items-center gap-2 text-sm text-fg-muted"><Spinner size={16} /> Loading…</div>
 	{:else if error && !keg}
-		<p class="text-red-600">{error}</p>
+		<p class="text-error">{error}</p>
 	{:else if keg}
-		<h1 class="mb-6 text-2xl font-bold">{keg.beer_name}</h1>
+		<div class="console-heading">
+			<h1>{keg.beer_name}</h1>
+			<span class="count">KEG-{keg.id.toString().padStart(3, '0')}</span>
+		</div>
 
 		{#if error}
-			<div class="mb-4 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700">{error}</div>
+			<div class="mb-4 rounded-lg bg-error-bg px-4 py-2 text-sm text-error">{error}</div>
 		{/if}
 		{#if success}
-			<div class="mb-4 rounded-lg bg-green-50 px-4 py-2 text-sm text-green-700">{success}</div>
+			<div class="mb-4 rounded-lg bg-success-bg px-4 py-2 text-sm text-success">{success}</div>
 		{/if}
 
-		<div class="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-			<h2 class="mb-4 text-lg font-semibold">Details</h2>
-			<div class="grid grid-cols-2 gap-4">
-				<label class="col-span-2 flex flex-col gap-1 text-sm font-medium text-gray-700">
-					Beer Name
-					<input bind:value={form.beer_name} class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-normal focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none" />
+		<div class="panel mb-6">
+			<h2>Details</h2>
+			<div class="grid grid-cols-2 gap-x-6 gap-y-4">
+				<label class="field col-span-2">
+					<span class="cap">Beer Name</span>
+					<input bind:value={form.beer_name} />
 				</label>
-				<label class="flex flex-col gap-1 text-sm font-medium text-gray-700">
-					Brewery
-					<input bind:value={form.brewery} class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-normal focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none" />
+				<label class="field">
+					<span class="cap">Brewery</span>
+					<input bind:value={form.brewery} />
 				</label>
-				<label class="flex flex-col gap-1 text-sm font-medium text-gray-700">
-					Style
-					<input bind:value={form.style} class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-normal focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none" />
+				<label class="field">
+					<span class="cap">Style</span>
+					<input bind:value={form.style} />
 				</label>
-				<label class="flex flex-col gap-1 text-sm font-medium text-gray-700">
-					ABV %
-					<input bind:value={form.abv} type="number" step="0.1" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-normal focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none" />
+				<label class="field">
+					<span class="cap">ABV %</span>
+					<input bind:value={form.abv} type="number" step="0.1" />
 				</label>
-				<div class="flex flex-col gap-1 text-sm font-medium text-gray-700">
-					<span>Keg Size</span>
-					<select
-						bind:value={form.capacity}
-						class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-normal focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-					>
+				<div class="field">
+					<span class="cap">Keg Size</span>
+					<select bind:value={form.capacity}>
 						{#each KEG_SIZES as size (size.ml)}
 							<option value={String(size.ml)}>{size.label}</option>
 						{/each}
 						<option value="custom">Custom…</option>
 					</select>
 					{#if form.capacity === 'custom'}
-						<input
-							bind:value={form.custom_ml}
-							type="number"
-							min="1"
-							class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-normal focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-							placeholder="Capacity in mL"
-						/>
+						<input bind:value={form.custom_ml} type="number" min="1" placeholder="Capacity in mL" />
 					{/if}
 				</div>
 
-					<div class="col-span-2 flex flex-col gap-1 text-sm font-medium text-gray-700">
-						<span>Beer Image Style</span>
-						<div class="flex gap-2">
+					<div class="col-span-2 flex flex-col gap-1">
+						<span class="cap">Beer Image Style</span>
+						<div class="flex gap-2 mt-1">
 							{#each [
 								{ value: 'circle', label: 'Circle' },
 								{ value: 'square', label: 'Square' },
@@ -309,12 +303,8 @@
 					</div>
 				</div>
 
-			<div class="mt-4 flex justify-end">
-				<button
-					onclick={save}
-					disabled={saving}
-					class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors duration-150 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50"
-				>
+			<div class="mt-5 flex justify-end">
+				<button onclick={save} disabled={saving} class="btn-console">
 					{#if saving}<Spinner size={14} />{/if}
 					{saving ? 'Saving…' : 'Save Changes'}
 				</button>
@@ -323,20 +313,20 @@
 
 		<div class="grid grid-cols-2 gap-4">
 			<!-- Beer Image -->
-			<div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-				<h2 class="mb-3 text-base font-semibold">Beer Image</h2>
+			<div class="panel !p-5">
+				<h2 class="!mb-3 !text-base">Beer Image</h2>
 				{#if hasImage}
 					<div class="flex flex-col items-center gap-3">
 						<img
 							src="/api/kegs/{keg.id}/image"
 							alt={keg.beer_name}
-							class="h-20 w-20 border border-gray-200 object-cover
+							class="h-20 w-20 border border-line object-cover
 								{form.image_style === 'circle' ? 'rounded-full' : form.image_style === 'can' ? 'rounded-[50%_50%_50%_50%/10%_10%_10%_10%]' : 'rounded-lg'}"
 							style={form.image_style === 'can' ? 'width:48px;height:96px' : ''}
 						/>
 						<button
 							onclick={deleteImage}
-							class="text-xs text-red-600 transition-colors hover:text-red-700 hover:underline"
+							class="text-xs text-error transition-colors hover:brightness-90 hover:underline"
 						>Remove</button>
 					</div>
 				{:else}
@@ -351,7 +341,7 @@
 							<input type="url" placeholder="https://example.com/beer.png" bind:value={imageUrlValue}
 								class="url-input" />
 							<button onclick={importImageFromUrl} disabled={importingImage || !imageUrlValue.trim()}
-								class="inline-flex items-center gap-1.5 rounded-lg bg-gray-800 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-gray-700 disabled:opacity-40">
+								class="inline-flex items-center gap-1.5 rounded-[3px] bg-accent px-3 py-1.5 text-xs font-mono font-semibold text-void transition-all hover:brightness-110 disabled:opacity-40">
 								{#if importingImage}<Spinner size={12} />{/if}
 								{importingImage ? 'Importing…' : 'Import'}
 							</button>
@@ -382,7 +372,7 @@
 						{#if imageFile}
 							<div class="mt-2 flex justify-end">
 								<button onclick={uploadImage} disabled={saving}
-									class="inline-flex items-center gap-1.5 rounded-lg bg-gray-800 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-gray-700 disabled:opacity-40">
+									class="inline-flex items-center gap-1.5 rounded-[3px] bg-accent px-3 py-1.5 text-xs font-mono font-semibold text-void transition-all hover:brightness-110 disabled:opacity-40">
 									{#if saving}<Spinner size={12} />{/if}
 									{saving ? 'Uploading…' : 'Upload'}
 								</button>
@@ -393,18 +383,18 @@
 			</div>
 
 			<!-- Brewery Image -->
-			<div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-				<h2 class="mb-3 text-base font-semibold">Brewery Logo</h2>
+			<div class="panel !p-5">
+				<h2 class="!mb-3 !text-base">Brewery Logo</h2>
 				{#if hasBreweryImage}
 					<div class="flex flex-col items-center gap-3">
 						<img
 							src="/api/kegs/{keg.id}/brewery-image"
 							alt="{keg.brewery} logo"
-							class="h-20 w-20 rounded-lg border border-gray-200 object-contain p-1"
+							class="h-20 w-20 rounded-lg border border-line object-contain p-1"
 						/>
 						<button
 							onclick={deleteBreweryImage}
-							class="text-xs text-red-600 transition-colors hover:text-red-700 hover:underline"
+							class="text-xs text-error transition-colors hover:brightness-90 hover:underline"
 						>Remove</button>
 					</div>
 				{:else}
@@ -419,7 +409,7 @@
 							<input type="url" placeholder="https://example.com/logo.png" bind:value={breweryUrlValue}
 								class="url-input" />
 							<button onclick={importBreweryImageFromUrl} disabled={importingBreweryImage || !breweryUrlValue.trim()}
-								class="inline-flex items-center gap-1.5 rounded-lg bg-gray-800 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-gray-700 disabled:opacity-40">
+								class="inline-flex items-center gap-1.5 rounded-[3px] bg-accent px-3 py-1.5 text-xs font-mono font-semibold text-void transition-all hover:brightness-110 disabled:opacity-40">
 								{#if importingBreweryImage}<Spinner size={12} />{/if}
 								{importingBreweryImage ? 'Importing…' : 'Import'}
 							</button>
@@ -450,7 +440,7 @@
 						{#if breweryFile}
 							<div class="mt-2 flex justify-end">
 								<button onclick={uploadBreweryImage} disabled={saving}
-									class="inline-flex items-center gap-1.5 rounded-lg bg-gray-800 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-gray-700 disabled:opacity-40">
+									class="inline-flex items-center gap-1.5 rounded-[3px] bg-accent px-3 py-1.5 text-xs font-mono font-semibold text-void transition-all hover:brightness-110 disabled:opacity-40">
 									{#if saving}<Spinner size={12} />{/if}
 									{saving ? 'Uploading…' : 'Upload'}
 								</button>
@@ -471,29 +461,29 @@
 		align-items: center;
 		gap: 0.35rem;
 		padding: 0.5rem 0.75rem;
-		border-radius: 8px;
-		border: 1.5px solid #e5e7eb;
-		background: #fff;
+		border-radius: 3px;
+		border: 1.5px solid var(--color-line);
+		background: var(--color-panel-raised);
 		cursor: pointer;
 		font-size: 0.72rem;
 		font-weight: 500;
-		color: #6b7280;
+		color: var(--color-fg-muted);
 		transition: border-color 0.15s, color 0.15s, background 0.15s;
 	}
 
 	.style-opt:hover {
-		border-color: #93c5fd;
-		color: #3b82f6;
+		border-color: color-mix(in srgb, var(--color-accent) 50%, transparent);
+		color: var(--color-accent);
 	}
 
 	.style-opt.active {
-		border-color: #3b82f6;
-		background: #eff6ff;
-		color: #2563eb;
+		border-color: var(--color-accent);
+		background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+		color: var(--color-accent);
 	}
 
 	.style-preview {
-		background: #9ca3af;
+		background: var(--color-fg-muted);
 		width: 32px;
 		height: 32px;
 	}
@@ -523,25 +513,25 @@
 	.mode-btn {
 		flex: 1;
 		padding: 0.35rem 0.5rem;
-		border-radius: 6px;
-		border: 1.5px solid #e5e7eb;
-		background: #fff;
+		border-radius: 3px;
+		border: 1.5px solid var(--color-line);
+		background: var(--color-panel-raised);
 		cursor: pointer;
 		font-size: 0.75rem;
 		font-weight: 500;
-		color: #6b7280;
+		color: var(--color-fg-muted);
 		transition: border-color 0.15s, color 0.15s, background 0.15s;
 	}
 
 	.mode-btn:hover {
-		border-color: #93c5fd;
-		color: #3b82f6;
+		border-color: color-mix(in srgb, var(--color-accent) 50%, transparent);
+		color: var(--color-accent);
 	}
 
 	.mode-btn.active {
-		border-color: #3b82f6;
-		background: #eff6ff;
-		color: #2563eb;
+		border-color: var(--color-accent);
+		background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+		color: var(--color-accent);
 	}
 
 	.url-import {
@@ -552,16 +542,16 @@
 	.url-input {
 		flex: 1;
 		min-width: 0;
-		border-radius: 8px;
-		border: 1px solid #d1d5db;
+		border-radius: 3px;
+		border: 1px solid var(--color-line);
 		padding: 0.5rem 0.75rem;
 		font-size: 0.85rem;
 	}
 
 	.url-input:focus {
 		outline: none;
-		border-color: #3b82f6;
-		box-shadow: 0 0 0 1px #3b82f6;
+		border-color: var(--color-accent);
+		box-shadow: 0 0 0 1px var(--color-accent);
 	}
 
 	.dropzone {
@@ -573,8 +563,8 @@
 		gap: 0.5rem;
 		min-height: 148px;
 		padding: 1.75rem 1.5rem;
-		border: 2px dashed #d1d5db;
-		border-radius: 10px;
+		border: 2px dashed var(--color-line);
+		border-radius: 4px;
 		cursor: pointer;
 		text-align: center;
 		transition: border-color 0.15s, background-color 0.15s;
@@ -584,40 +574,40 @@
 
 	.dropzone:hover,
 	.dropzone:focus-visible {
-		border-color: #93c5fd;
-		background-color: #f0f7ff;
+		border-color: color-mix(in srgb, var(--color-accent) 50%, transparent);
+		background-color: color-mix(in srgb, var(--color-accent) 6%, var(--color-panel-raised));
 	}
 
 	.dropzone.drag-over {
-		border-color: #3b82f6;
-		background-color: #eff6ff;
+		border-color: var(--color-accent);
+		background-color: color-mix(in srgb, var(--color-accent) 10%, var(--color-panel-raised));
 	}
 
 	.drop-icon {
-		color: #9ca3af;
+		color: var(--color-fg-muted);
 		transition: color 0.15s;
 	}
 
 	.dropzone:hover .drop-icon,
 	.dropzone.drag-over .drop-icon {
-		color: #60a5fa;
+		color: var(--color-accent);
 	}
 
 	.drop-label {
 		font-size: 0.875rem;
-		color: #6b7280;
+		color: var(--color-fg-muted);
 		margin: 0;
 	}
 
 	.browse-link {
-		color: #3b82f6;
+		color: var(--color-accent);
 		text-decoration: underline;
 		text-underline-offset: 2px;
 	}
 
 	.drop-hint {
 		font-size: 0.72rem;
-		color: #9ca3af;
+		color: var(--color-fg-muted);
 		margin: 0;
 	}
 
@@ -626,9 +616,9 @@
 	.preview-img {
 		width: 80px;
 		height: 80px;
-		border-radius: 8px;
+		border-radius: 3px;
 		object-fit: cover;
-		border: 1px solid #e5e7eb;
+		border: 1px solid var(--color-line);
 	}
 
 	.file-meta {
@@ -641,7 +631,7 @@
 	.file-name {
 		font-size: 0.8rem;
 		font-weight: 500;
-		color: #374151;
+		color: var(--color-fg);
 		max-width: 220px;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -650,7 +640,7 @@
 
 	.file-size {
 		font-size: 0.7rem;
-		color: #9ca3af;
+		color: var(--color-fg-muted);
 	}
 
 	.clear-btn {
@@ -660,7 +650,7 @@
 		width: 1.4rem;
 		height: 1.4rem;
 		border-radius: 50%;
-		background: #6b7280;
+		background: var(--color-fg-muted);
 		color: #fff;
 		font-size: 0.65rem;
 		border: none;
@@ -673,6 +663,6 @@
 	}
 
 	.clear-btn:hover {
-		background: #374151;
+		background: var(--color-fg);
 	}
 </style>

@@ -129,25 +129,23 @@
 </script>
 
 <div class="max-w-2xl">
-	<div class="mb-6 flex items-center justify-between">
-		<h1 class="text-2xl font-bold">Taps</h1>
-		<button
-			onclick={() => { showAdd = !showAdd; addError = ''; newTapId = ''; }}
-			class="btn btn-primary"
-		>
+	<div class="console-heading">
+		<h1>Tap Manifest</h1>
+		<span class="count">{taps.length} lines</span>
+		<button onclick={() => { showAdd = !showAdd; addError = ''; newTapId = ''; }} class="btn-console">
 			{showAdd ? 'Cancel' : '+ Add Tap'}
 		</button>
 	</div>
 
 	{#if showAdd}
-		<div class="mb-6 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-			<h2 class="mb-3 text-sm font-semibold text-gray-700">New Tap</h2>
+		<div class="panel !p-5 mb-6">
+			<h2 class="!text-sm">New Tap</h2>
 			{#if addError}
-				<div class="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{addError}</div>
+				<div class="mb-3 rounded-lg bg-error-bg px-3 py-2 text-sm text-error">{addError}</div>
 			{/if}
 			<div class="flex items-end gap-3">
-				<label class="flex flex-col gap-1 text-sm font-medium text-gray-700">
-					Tap ID (1–255)
+				<label class="field">
+					<span class="cap">Tap ID (1–255)</span>
 					<input
 						type="number"
 						min="1"
@@ -155,10 +153,10 @@
 						bind:value={newTapId}
 						onkeydown={(e) => e.key === 'Enter' && addTap()}
 						placeholder="e.g. 3"
-						class="w-28 rounded-lg border border-gray-300 px-3 py-2 text-sm font-normal focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+						class="w-28"
 					/>
 				</label>
-				<button onclick={addTap} disabled={adding} class="btn btn-primary mb-0.5">
+				<button onclick={addTap} disabled={adding} class="btn-console">
 					{#if adding}<Spinner size={14} />{/if}
 					{adding ? 'Adding…' : 'Add'}
 				</button>
@@ -167,32 +165,29 @@
 	{/if}
 
 	{#if error}
-		<div class="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+		<div class="mb-4 rounded-lg bg-error-bg px-4 py-3 text-sm text-error">{error}</div>
 	{/if}
 
 	{#if loading}
-		<div class="flex items-center gap-2 text-sm text-gray-500">
+		<div class="flex items-center gap-2 text-sm text-fg-muted">
 			<Spinner size={16} />
 			Loading…
 		</div>
 	{:else if taps.length === 0}
-		<p class="text-gray-500">No taps yet. Add one above.</p>
+		<p class="text-fg-muted">No taps yet. Add one above.</p>
 	{:else}
 		<div class="space-y-3">
 			{#each taps as tap (tap.id)}
-				<div class="rounded-xl border border-gray-200 bg-white shadow-sm">
+				<div class="panel !p-0">
 					<!-- ── Desktop layout: single flex row ── -->
 					<div class="hidden sm:flex items-center gap-4 p-4">
-						<div class="min-w-[52px] text-center">
-							<div class="text-2xl font-black text-gray-800">#{tap.id}</div>
-							<div class="text-xs text-gray-400">tap</div>
-						</div>
+						<div class="readout-badge">{tap.id}</div>
 						<div class="flex-1 min-w-0">
 							{#if tap.keg}
-								<div class="text-sm font-medium text-gray-900 truncate">{tap.keg.beer_name}</div>
-								<div class="text-xs text-gray-500">{tap.keg.brewery || ''} · {(tap.keg.capacity_ml / 1000).toFixed(1)}L</div>
+								<div class="text-sm font-bold text-fg truncate">{tap.keg.beer_name}</div>
+								<div class="text-xs font-mono text-fg-muted">{tap.keg.brewery || ''} · {(tap.keg.capacity_ml / 1000).toFixed(1)}L</div>
 							{:else}
-								<div class="text-sm italic text-gray-400">No keg assigned</div>
+								<div class="text-sm italic text-fg-muted">No keg assigned</div>
 							{/if}
 						</div>
 						<div class="flex items-center gap-2 shrink-0">
@@ -209,7 +204,7 @@
 												{/each}
 											</div>
 										{/if}
-										<button class="btn btn-pour" class:open={pourOpen[tap.id]} disabled={pouring[tap.id]} onclick={() => (pourOpen[tap.id] = !pourOpen[tap.id])}>
+										<button class="btn-pour" class:open={pourOpen[tap.id]} disabled={pouring[tap.id]} onclick={() => (pourOpen[tap.id] = !pourOpen[tap.id])}>
 											{#if pouring[tap.id]}<Spinner size={13} />{/if}
 											{pouring[tap.id] ? 'Logging…' : 'Log Pour'}
 										</button>
@@ -217,19 +212,19 @@
 								</div>
 							{/if}
 							{#if pourSuccess[tap.id]}
-								<span class="text-xs font-medium text-green-600">Logged!</span>
+								<span class="text-xs font-medium text-success">Logged!</span>
 							{/if}
-							<select bind:value={selections[tap.id]} class="rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none">
+							<select bind:value={selections[tap.id]} class="tap-select">
 								<option value="">— Remove keg —</option>
 								{#each kegs as keg (keg.id)}
 									<option value={String(keg.id)}>{keg.beer_name}</option>
 								{/each}
 							</select>
-							<button onclick={() => assignKeg(tap.id)} disabled={assigning[tap.id]} class="btn btn-secondary flex items-center gap-1.5">
+							<button onclick={() => assignKeg(tap.id)} disabled={assigning[tap.id]} class="btn-console-ghost flex items-center gap-1.5">
 								{#if assigning[tap.id]}<Spinner size={13} />{/if}
 								Apply
 							</button>
-							<button onclick={() => deleteTap(tap.id)} disabled={deleting[tap.id]} class="btn btn-danger flex items-center gap-1.5">
+							<button onclick={() => deleteTap(tap.id)} disabled={deleting[tap.id]} class="btn-console-ghost danger flex items-center gap-1.5">
 								{#if deleting[tap.id]}<Spinner size={13} />{/if}
 								Delete
 							</button>
@@ -240,28 +235,22 @@
 					<div class="sm:hidden p-4">
 						<!-- Header: tap number + keg name -->
 						<div class="flex items-center gap-3 mb-3">
-							<div class="text-center min-w-[40px]">
-								<div class="text-xl font-black text-gray-800">#{tap.id}</div>
-								<div class="text-xs text-gray-400">tap</div>
-							</div>
+							<div class="readout-badge" style="--rb-size: 2.25rem; font-size: 0.9rem;">{tap.id}</div>
 							<div class="flex-1 min-w-0">
 								{#if tap.keg}
-									<div class="text-sm font-medium text-gray-900 truncate">{tap.keg.beer_name}</div>
-									<div class="text-xs text-gray-500">{tap.keg.brewery || ''} · {(tap.keg.capacity_ml / 1000).toFixed(1)}L</div>
+									<div class="text-sm font-bold text-fg truncate">{tap.keg.beer_name}</div>
+									<div class="text-xs font-mono text-fg-muted">{tap.keg.brewery || ''} · {(tap.keg.capacity_ml / 1000).toFixed(1)}L</div>
 								{:else}
-									<div class="text-sm italic text-gray-400">No keg assigned</div>
+									<div class="text-sm italic text-fg-muted">No keg assigned</div>
 								{/if}
 							</div>
 							{#if pourSuccess[tap.id]}
-								<span class="text-xs font-medium text-green-600">Logged!</span>
+								<span class="text-xs font-medium text-success">Logged!</span>
 							{/if}
 						</div>
 
 						<!-- Keg select (full width) -->
-						<select
-							bind:value={selections[tap.id]}
-							class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none mb-2"
-						>
+						<select bind:value={selections[tap.id]} class="tap-select w-full mb-2">
 							<option value="">— Remove keg —</option>
 							{#each kegs as keg (keg.id)}
 								<option value={String(keg.id)}>{keg.beer_name}</option>
@@ -270,7 +259,7 @@
 
 						<!-- Action buttons row -->
 						<div class="flex gap-2">
-							<button onclick={() => assignKeg(tap.id)} disabled={assigning[tap.id]} class="btn btn-secondary flex-1 flex items-center justify-center gap-1.5">
+							<button onclick={() => assignKeg(tap.id)} disabled={assigning[tap.id]} class="btn-console-ghost flex-1 flex items-center justify-center gap-1.5">
 								{#if assigning[tap.id]}<Spinner size={13} />{/if}
 								Apply
 							</button>
@@ -287,14 +276,14 @@
 												{/each}
 											</div>
 										{/if}
-										<button class="btn btn-pour" class:open={pourOpen[tap.id]} disabled={pouring[tap.id]} onclick={() => (pourOpen[tap.id] = !pourOpen[tap.id])}>
+										<button class="btn-pour" class:open={pourOpen[tap.id]} disabled={pouring[tap.id]} onclick={() => (pourOpen[tap.id] = !pourOpen[tap.id])}>
 											{#if pouring[tap.id]}<Spinner size={13} />{/if}
 											{pouring[tap.id] ? 'Logging…' : 'Log Pour'}
 										</button>
 									</div>
 								</div>
 							{/if}
-							<button onclick={() => deleteTap(tap.id)} disabled={deleting[tap.id]} class="btn btn-danger flex items-center gap-1.5">
+							<button onclick={() => deleteTap(tap.id)} disabled={deleting[tap.id]} class="btn-console-ghost danger flex items-center gap-1.5">
 								{#if deleting[tap.id]}<Spinner size={13} />{/if}
 								Delete
 							</button>
@@ -307,65 +296,53 @@
 </div>
 
 <style>
-	.btn {
+	.tap-select {
+		background: var(--color-void);
+		border: 1px solid var(--color-line);
+		border-radius: 3px;
+		padding: 0.35rem 0.5rem;
+		font-family: var(--font-mono);
+		font-size: 0.85rem;
+		color: var(--color-fg);
+		transition:
+			border-color 0.15s,
+			box-shadow 0.15s;
+	}
+
+	.tap-select:focus {
+		outline: none;
+		border-color: var(--color-accent);
+		box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 20%, transparent);
+	}
+
+	.btn-pour {
 		display: inline-flex;
 		align-items: center;
 		gap: 0.375rem;
 		padding: 0.4rem 0.875rem;
-		border-radius: 8px;
-		font-size: 0.8125rem;
+		border-radius: 3px;
+		font-family: var(--font-display);
+		font-size: 0.75rem;
 		font-weight: 600;
+		letter-spacing: 0.05em;
+		text-transform: uppercase;
 		cursor: pointer;
 		border: none;
 		transition: background-color 0.15s, box-shadow 0.15s, opacity 0.15s;
+		background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+		color: var(--color-accent);
+		border: 1px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
 	}
 
-	.btn:disabled {
+	.btn-pour:disabled {
 		opacity: 0.5;
 		cursor: not-allowed;
 	}
 
-	.btn-primary {
-		background: #2563eb;
-		color: #fff;
-	}
-
-	.btn-primary:not(:disabled):hover {
-		background: #1d4ed8;
-		box-shadow: 0 1px 4px rgba(37, 99, 235, 0.35);
-	}
-
-	.btn-secondary {
-		background: #f3f4f6;
-		color: #374151;
-		border: 1px solid #e5e7eb;
-	}
-
-	.btn-secondary:not(:disabled):hover {
-		background: #e5e7eb;
-	}
-
-	.btn-danger {
-		background: transparent;
-		color: #dc2626;
-		border: 1px solid #fecaca;
-	}
-
-	.btn-danger:not(:disabled):hover {
-		background: #fef2f2;
-		border-color: #fca5a5;
-	}
-
-	.btn-pour {
-		background: rgba(200, 130, 26, 0.1);
-		color: #92400e;
-		border: 1px solid rgba(200, 130, 26, 0.3);
-	}
-
 	.btn-pour:not(:disabled):hover,
 	.btn-pour.open {
-		background: rgba(200, 130, 26, 0.18);
-		border-color: rgba(200, 130, 26, 0.5);
+		background: color-mix(in srgb, var(--color-accent) 18%, transparent);
+		border-color: color-mix(in srgb, var(--color-accent) 50%, transparent);
 	}
 
 	/* Pour flyout */
@@ -395,20 +372,21 @@
 		right: 0;
 		display: flex;
 		gap: 0.3rem;
-		background: #fff;
-		border: 1px solid #e5e7eb;
-		border-radius: 10px;
+		background: var(--color-panel-raised);
+		border: 1px solid var(--color-line);
+		border-top: 2px solid var(--color-accent);
+		border-radius: 3px;
 		padding: 0.4rem;
-		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 		white-space: nowrap;
 	}
 
 	.preset-btn {
 		padding: 0.45rem 0.75rem;
-		border-radius: 7px;
-		background: #f9fafb;
-		border: 1px solid #e5e7eb;
-		color: #374151;
+		border-radius: 3px;
+		background: var(--color-void);
+		border: 1px solid var(--color-line);
+		color: var(--color-fg);
 		font-size: 0.8125rem;
 		font-weight: 600;
 		cursor: pointer;
@@ -416,9 +394,9 @@
 	}
 
 	.preset-btn:not(:disabled):hover {
-		background: rgba(200, 130, 26, 0.08);
-		border-color: rgba(200, 130, 26, 0.35);
-		color: #92400e;
+		background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+		border-color: color-mix(in srgb, var(--color-accent) 35%, transparent);
+		color: var(--color-accent);
 	}
 
 	.preset-btn:disabled {

@@ -55,53 +55,115 @@
 	}
 </script>
 
-<div class="flex min-h-screen items-center justify-center bg-gray-100">
-	<div class="w-full max-w-sm rounded-xl bg-white p-8 shadow-md">
-		<h1 class="mb-1 text-2xl font-bold text-gray-900">GoPints Admin</h1>
-		<p class="mb-6 text-sm text-gray-500">
-			{isSetup ? 'Set an admin password to get started.' : 'Sign in to manage your kegerator.'}
+<div class="cover-stage">
+	<div class="cover-card">
+		<div class="logo-chip">
+			<svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+				<rect x="9" y="2" width="6" height="3" rx="1" fill="currentColor" />
+				<rect x="8" y="5" width="8" height="13" rx="1" fill="currentColor" opacity="0.85" />
+				<path d="M16 8h3a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-3" stroke="currentColor" stroke-width="1.5" fill="none" />
+			</svg>
+		</div>
+		<p class="eyebrow">System Access</p>
+		<h1>GoPints Console</h1>
+		<p class="byline">
+			{isSetup ? 'Set an admin password to configure the system.' : 'Authenticate to access the console.'}
 		</p>
 
 		{#if error}
-			<div class="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+			<div class="mb-4 rounded-lg bg-error-bg px-4 py-3 text-sm text-error">{error}</div>
 		{/if}
 
 		<form onsubmit={(e) => { e.preventDefault(); submit(); }} class="flex flex-col gap-4">
-			<div>
-				<label for="password" class="mb-1 block text-sm font-medium text-gray-700">
-					{isSetup ? 'New Password' : 'Password'}
-				</label>
+			<label class="field">
+				<span class="cap">{isSetup ? 'New Password' : 'Password'}</span>
 				<input
 					id="password"
 					type="password"
 					bind:value={password}
-					class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
 					autocomplete={isSetup ? 'new-password' : 'current-password'}
 				/>
-			</div>
+			</label>
 
 			{#if isSetup}
-				<div>
-					<label for="confirm" class="mb-1 block text-sm font-medium text-gray-700">
-						Confirm Password
-					</label>
-					<input
-						id="confirm"
-						type="password"
-						bind:value={confirmPassword}
-						class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-						autocomplete="new-password"
-					/>
-				</div>
+				<label class="field">
+					<span class="cap">Confirm Password</span>
+					<input id="confirm" type="password" bind:value={confirmPassword} autocomplete="new-password" />
+				</label>
 			{/if}
 
-			<button
-				type="submit"
-				disabled={loading}
-				class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
-			>
+			<button type="submit" disabled={loading} class="btn-console w-full justify-center mt-2">
 				{loading ? 'Please wait…' : isSetup ? 'Set Password & Continue' : 'Sign In'}
 			</button>
 		</form>
 	</div>
 </div>
+
+<style>
+	.cover-stage {
+		min-height: 100vh;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: var(--color-void);
+		background-image: radial-gradient(
+			ellipse 70% 50% at 50% 0%,
+			color-mix(in srgb, var(--color-accent) 6%, transparent) 0%,
+			transparent 70%
+		);
+	}
+
+	.cover-card {
+		width: 100%;
+		max-width: 24rem;
+		background: var(--color-panel-raised);
+		border: 1px solid var(--color-line);
+		border-top: 2px solid var(--color-accent);
+		border-radius: 3px;
+		box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+		padding: 2.5rem 2.25rem 2.25rem;
+		text-align: center;
+	}
+
+	.logo-chip {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 3.25rem;
+		height: 3.25rem;
+		background: var(--color-void);
+		border: 1px solid var(--color-line);
+		clip-path: polygon(20% 0, 100% 0, 100% 80%, 80% 100%, 0 100%, 0 20%);
+		color: var(--color-accent);
+		margin-bottom: 1.1rem;
+	}
+
+	.eyebrow {
+		font-family: var(--font-mono);
+		font-size: 0.68rem;
+		letter-spacing: 0.2em;
+		text-transform: uppercase;
+		color: var(--color-fg-muted);
+		margin: 0 0 0.35rem;
+	}
+
+	.cover-card h1 {
+		font-family: var(--font-brand);
+		font-size: 1.7rem;
+		letter-spacing: 0.03em;
+		text-transform: uppercase;
+		color: var(--color-fg);
+		margin: 0 0 0.4rem;
+	}
+
+	.byline {
+		font-family: var(--font-mono);
+		font-size: 0.82rem;
+		color: var(--color-fg-muted);
+		margin: 0 0 1.75rem;
+	}
+
+	.cover-card form {
+		text-align: left;
+	}
+</style>

@@ -18,26 +18,26 @@
 </script>
 
 {#if hasBanners}
-	<div class="fixed top-0 right-0 left-0 z-50 flex flex-col gap-1 p-2">
+	<div class="fixed top-0 right-0 left-0 z-50 flex flex-col gap-1 p-2 font-mono">
 		{#each activePours as pour (pour.tap_id)}
 			<div
-				class="animate-pulse rounded-lg bg-amber-500/90 px-4 py-3 text-center text-lg font-semibold text-black backdrop-blur"
+				class="animate-pulse rounded-[3px] border border-signal-good bg-signal-good/15 px-4 py-3 text-center text-lg font-semibold text-signal-good backdrop-blur"
 			>
-				Tap {pour.tap_id} — Pouring {pour.volume_ml.toFixed(0)} mL
+				TAP {pour.tap_id} — POURING {pour.volume_ml.toFixed(0)} mL
 			</div>
 		{/each}
 
 		{#each lowKegs as tap (tap.id)}
 			<div
-				class="rounded-lg bg-orange-600/90 px-4 py-3 text-center text-lg font-semibold text-white backdrop-blur"
+				class="rounded-[3px] border border-accent bg-accent/15 px-4 py-3 text-center text-lg font-semibold text-accent backdrop-blur"
 			>
-				Tap {tap.id} — Low keg ({(stats[tap.keg!.id]?.pct_remaining ?? 0).toFixed(0)}% remaining)
+				TAP {tap.id} — LOW KEG ({(stats[tap.keg!.id]?.pct_remaining ?? 0).toFixed(0)}% REMAINING)
 			</div>
 		{/each}
 
 		{#if customMessage}
 			<div
-				class="rounded-lg bg-indigo-600/90 px-4 py-3 text-center text-lg font-semibold text-white backdrop-blur"
+				class="rounded-[3px] border-l-2 border-accent bg-panel/95 px-4 py-3 text-center text-lg font-semibold text-fg backdrop-blur"
 			>
 				{customMessage}
 			</div>

@@ -73,45 +73,40 @@
 </script>
 
 <div class="max-w-4xl">
-	<div class="mb-6 flex items-center justify-between">
-		<h1 class="text-2xl font-bold">Kegs</h1>
-		<button
-			onclick={() => (showCreate = !showCreate)}
-			class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors duration-150 hover:bg-blue-700 active:bg-blue-800"
-		>
-			{showCreate ? 'Cancel' : '+ New Keg'}
+	<div class="console-heading">
+		<h1>Keg Stock</h1>
+		<span class="count">{kegs.length} on file</span>
+		<button onclick={() => (showCreate = !showCreate)} class="btn-console">
+			{showCreate ? 'Cancel' : '+ Register Keg'}
 		</button>
 	</div>
 
 	{#if showCreate}
-		<div class="mb-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-			<h2 class="mb-4 text-lg font-semibold">New Keg</h2>
+		<div class="panel mb-6">
+			<h2>Register Keg</h2>
 			{#if formError}
-				<div class="mb-4 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700">{formError}</div>
+				<div class="mb-4 rounded-lg bg-error-bg px-4 py-2 text-sm text-error">{formError}</div>
 			{/if}
-			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-				<label class="col-span-1 flex flex-col gap-1 text-sm font-medium text-gray-700 sm:col-span-2">
-					Beer Name *
-					<input bind:value={form.beer_name} class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-normal focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none" placeholder="Hazy IPA" />
+			<div class="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+				<label class="field col-span-1 sm:col-span-2">
+					<span class="cap">Beer Name *</span>
+					<input bind:value={form.beer_name} placeholder="Hazy IPA" />
 				</label>
-				<label class="flex flex-col gap-1 text-sm font-medium text-gray-700">
-					Brewery
-					<input bind:value={form.brewery} class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-normal focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none" placeholder="Local Brewing Co." />
+				<label class="field">
+					<span class="cap">Brewery</span>
+					<input bind:value={form.brewery} placeholder="Local Brewing Co." />
 				</label>
-				<label class="flex flex-col gap-1 text-sm font-medium text-gray-700">
-					Style
-					<input bind:value={form.style} class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-normal focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none" placeholder="IPA" />
+				<label class="field">
+					<span class="cap">Style</span>
+					<input bind:value={form.style} placeholder="IPA" />
 				</label>
-				<label class="flex flex-col gap-1 text-sm font-medium text-gray-700">
-					ABV %
-					<input bind:value={form.abv} type="number" step="0.1" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-normal focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none" placeholder="6.5" />
+				<label class="field">
+					<span class="cap">ABV %</span>
+					<input bind:value={form.abv} type="number" step="0.1" placeholder="6.5" />
 				</label>
-				<div class="flex flex-col gap-1 text-sm font-medium text-gray-700">
-					<span>Keg Size *</span>
-					<select
-						bind:value={form.capacity}
-						class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-normal focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-					>
+				<div class="field">
+					<span class="cap">Keg Size *</span>
+					<select bind:value={form.capacity}>
 						<option value="">— Select size —</option>
 						{#each KEG_SIZES as size (size.ml)}
 							<option value={String(size.ml)}>{size.label}</option>
@@ -119,77 +114,68 @@
 						<option value="custom">Custom…</option>
 					</select>
 					{#if form.capacity === 'custom'}
-						<input
-							bind:value={form.custom_ml}
-							type="number"
-							min="1"
-							class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-normal focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-							placeholder="Capacity in mL"
-						/>
+						<input bind:value={form.custom_ml} type="number" min="1" placeholder="Capacity in mL" />
 					{/if}
 				</div>
 			</div>
-			<div class="mt-4 flex justify-end">
-				<button
-					onclick={createKeg}
-					disabled={saving}
-					class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors duration-150 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50"
-				>
+			<div class="mt-5 flex justify-end">
+				<button onclick={createKeg} disabled={saving} class="btn-console">
 					{#if saving}<Spinner size={14} />{/if}
-					{saving ? 'Creating…' : 'Create Keg'}
+					{saving ? 'Registering…' : 'Register'}
 				</button>
 			</div>
 		</div>
 	{/if}
 
 	{#if error}
-		<div class="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+		<div class="mb-4 rounded-lg bg-error-bg px-4 py-3 text-sm text-error">{error}</div>
 	{/if}
 
 	{#if loading}
-		<div class="flex items-center gap-2 text-sm text-gray-500"><Spinner size={16} /> Loading…</div>
+		<div class="flex items-center gap-2 text-sm text-fg-muted"><Spinner size={16} /> Loading…</div>
 	{:else if kegs.length === 0}
-		<p class="text-gray-500">No kegs yet. Create one above.</p>
+		<p class="text-fg-muted">No kegs registered yet. Register one above.</p>
 	{:else}
-		<div class="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-			<table class="w-full text-sm">
-				<thead class="border-b border-gray-200 bg-gray-50">
+		<div class="panel !p-0 overflow-hidden">
+			<table class="data-table">
+				<thead>
 					<tr>
-						<th class="px-4 py-3 text-left font-medium text-gray-600">Beer</th>
-						<th class="hidden sm:table-cell px-4 py-3 text-left font-medium text-gray-600">Brewery</th>
-						<th class="hidden sm:table-cell px-4 py-3 text-left font-medium text-gray-600">Style</th>
-						<th class="hidden sm:table-cell px-4 py-3 text-left font-medium text-gray-600">ABV</th>
-						<th class="hidden sm:table-cell px-4 py-3 text-left font-medium text-gray-600">Capacity</th>
-						<th class="px-4 py-3"></th>
+						<th>Beer</th>
+						<th class="hidden sm:table-cell">Brewery</th>
+						<th class="hidden sm:table-cell">Style</th>
+						<th class="hidden sm:table-cell">ABV</th>
+						<th class="hidden sm:table-cell">Capacity</th>
+						<th></th>
 					</tr>
 				</thead>
-				<tbody class="divide-y divide-gray-100">
+				<tbody>
 					{#each kegs as keg (keg.id)}
-						<tr
-							class="hover:bg-gray-50 sm:cursor-default cursor-pointer"
-							onclick={() => goto(`/admin/kegs/${keg.id}`)}
-						>
-							<td class="px-4 py-3 font-medium">
+						<tr class="sm:cursor-default cursor-pointer" onclick={() => goto(`/admin/kegs/${keg.id}`)}>
+							<td class="font-bold">
 								<span>{keg.beer_name}</span>
 								{#if keg.brewery || keg.style}
-									<div class="sm:hidden mt-0.5 text-xs text-gray-500 font-normal">
+									<div class="sm:hidden mt-0.5 text-xs text-fg-muted">
 										{[keg.brewery, keg.style].filter(Boolean).join(' · ')}
 									</div>
 								{/if}
 							</td>
-							<td class="hidden sm:table-cell px-4 py-3 text-gray-600">{keg.brewery || '—'}</td>
-							<td class="hidden sm:table-cell px-4 py-3 text-gray-600">{keg.style || '—'}</td>
-							<td class="hidden sm:table-cell px-4 py-3 text-gray-600">{keg.abv ? `${keg.abv}%` : '—'}</td>
-							<td class="hidden sm:table-cell px-4 py-3 text-gray-600">{kegSizeLabel(keg.capacity_ml)}</td>
-							<td class="px-4 py-3 text-right">
+							<td class="hidden sm:table-cell text-fg-muted">{keg.brewery || '—'}</td>
+							<td class="hidden sm:table-cell text-fg-muted">{keg.style || '—'}</td>
+							<td class="hidden sm:table-cell text-fg-muted">{keg.abv ? `${keg.abv}%` : '—'}</td>
+							<td class="hidden sm:table-cell text-fg-muted">{kegSizeLabel(keg.capacity_ml)}</td>
+							<td class="text-right whitespace-nowrap">
 								<!-- Desktop: Edit + Delete -->
-								<a href="/admin/kegs/{keg.id}" onclick={(e) => e.stopPropagation()} class="hidden sm:inline mr-3 text-blue-600 hover:underline">Edit</a>
+								<a
+									href="/admin/kegs/{keg.id}"
+									onclick={(e) => e.stopPropagation()}
+									class="btn-console-ghost hidden sm:inline-flex mr-2"
+								>Edit</a>
 								<button
 									onclick={(e) => { e.stopPropagation(); deleteKeg(keg.id); }}
-									class="hidden sm:inline text-red-600 hover:underline"
+									class="btn-console-ghost danger hidden sm:inline-flex"
 								>Delete</button>
 								<!-- Mobile: chevron -->
-								<svg class="sm:hidden inline-block text-gray-400" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+								<svg class="sm:hidden inline-block text-fg-muted" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 									<path d="M9 18l6-6-6-6"/>
 								</svg>
 							</td>
