@@ -2,9 +2,9 @@ name: Publish
 
 # Fires when release-prepare-backend.yml / release-prepare-web.yml finalizes a
 # release-prep PR merge and publishes the GitHub release. Also bumps the
-# k8s deployment manifest's image tag via a direct commit, but only after
-# the corresponding image is confirmed pushed to GHCR (ArgoCD auto-syncs
-# off this repo, so that ordering matters).
+# k8s deployment manifest's image tag (via kustomize) with a direct commit,
+# but only after the corresponding image is confirmed pushed to GHCR
+# (ArgoCD auto-syncs off this repo, so that ordering matters).
 on:
   release:
     types: [published]
@@ -182,16 +182,19 @@ jobs:
         with:
           ref: main
 
-      - name: Determine manifest path and image name
+      - name: Set up kustomize
+        uses: imranismail/setup-kustomize@v2
+
+      - name: Determine deploy directory and image name
         id: target
         run: |
           case "${{ needs.prepare.outputs.package }}" in
             gopints)
-              echo "manifest=gopints/infrastructure/deploy/deployment.yaml" >> "$GITHUB_OUTPUT"
+              echo "dir=gopints/infrastructure/deploy" >> "$GITHUB_OUTPUT"
               echo "image=gopints-server" >> "$GITHUB_OUTPUT"
               ;;
             web)
-              echo "manifest=web/infrastructure/deploy/deployment.yaml" >> "$GITHUB_OUTPUT"
+              echo "dir=web/infrastructure/deploy" >> "$GITHUB_OUTPUT"
               echo "image=gopints-web" >> "$GITHUB_OUTPUT"
               ;;
             *)
@@ -204,14 +207,25 @@ jobs:
         env:
           GIT_COMMIT_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
         run: |
-          sed -i -E "s#(image: ${{ env.REGISTRY }}/rickcern44/${{ steps.target.outputs.image }}:).*#\1${{ needs.prepare.outputs.version }}#" "${{ steps.target.outputs.manifest }}"
-          if git diff --quiet -- "${{ steps.target.outputs.manifest }}"; then
-            echo "Manifest already at ${{ needs.prepare.outputs.version }}; nothing to commit."
+          IMAGE_REF="${{ env.REGISTRY }}/rickcern44/${{ steps.target.outputs.image }}"
+          DEPLOY_DIR="${{ steps.target.outputs.dir }}"
+          VERSION="${{ needs.prepare.outputs.version }}"
+
+          (cd "$DEPLOY_DIR" && kustomize edit set image "${IMAGE_REF}=${IMAGE_REF}:${VERSION}")
+
+          if git diff --quiet -- "$DEPLOY_DIR/kustomization.yaml"; then
+            echo "Manifest already at ${VERSION}; nothing to commit."
             exit 0
           fi
+
+          if ! kustomize build "$DEPLOY_DIR" | grep -qF "image: ${IMAGE_REF}:${VERSION}"; then
+            echo "Rendered manifest does not contain expected image tag ${IMAGE_REF}:${VERSION}; aborting." >&2
+            exit 1
+          fi
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "${{ steps.target.outputs.manifest }}"
-          git commit -m "chore(deploy): bump ${{ needs.prepare.outputs.package }} image tag to ${{ needs.prepare.outputs.version }}"
+          git add "$DEPLOY_DIR/kustomization.yaml"
+          git commit -m "chore(deploy): bump ${{ needs.prepare.outputs.package }} image tag to ${VERSION}"
           git remote set-url origin "https://x-access-token:${GIT_COMMIT_TOKEN}@github.com/${{ github.repository }}.git"
           git push origin HEAD:main
