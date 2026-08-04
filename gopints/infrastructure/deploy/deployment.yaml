@@ -16,6 +16,7 @@ spec:
       containers:
         - name: gopints-server
           image: ghcr.io/rickcern44/gopints-server:0.5.1
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
           env:
