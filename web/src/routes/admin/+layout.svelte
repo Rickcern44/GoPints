@@ -222,13 +222,11 @@
 {/if}
 
 <style>
-	@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
-
 	/* ─── Shell ──────────────────────────────────────────────────── */
 	.admin-shell {
 		display: flex;
 		height: 100dvh;
-		color: #111827;
+		color: var(--color-fg);
 		position: relative;
 	}
 
@@ -238,12 +236,20 @@
 		flex-direction: column;
 		width: 13rem;
 		flex-shrink: 0;
-		background-color: #16100a;
+		background-color: var(--color-panel);
 		background-image:
-			radial-gradient(ellipse 80% 40% at 20% 0%, rgba(200, 130, 20, 0.09) 0%, transparent 100%),
-			radial-gradient(ellipse 60% 40% at 80% 100%, rgba(160, 80, 10, 0.06) 0%, transparent 100%);
-		border-right: 1px solid rgba(200, 140, 30, 0.12);
-		color: #e8d5b0;
+			radial-gradient(
+				ellipse 80% 40% at 20% 0%,
+				color-mix(in srgb, var(--color-accent) 9%, transparent) 0%,
+				transparent 100%
+			),
+			radial-gradient(
+				ellipse 60% 40% at 80% 100%,
+				color-mix(in srgb, var(--color-accent) 6%, transparent) 0%,
+				transparent 100%
+			);
+		border-right: 1px solid color-mix(in srgb, var(--color-accent) 12%, transparent);
+		color: var(--color-fg-muted);
 	}
 
 	.brand-header {
@@ -251,27 +257,28 @@
 		align-items: center;
 		gap: 0.75rem;
 		padding: 1.1rem 1.25rem 1rem;
-		border-bottom: 1px solid rgba(200, 140, 30, 0.15);
+		border-bottom: 1px solid color-mix(in srgb, var(--color-accent) 15%, transparent);
 	}
 
 	.beer-icon {
-		color: #c8821a;
+		color: var(--color-accent);
 		flex-shrink: 0;
 	}
 
 	.brand-name {
-		font-family: 'Bebas Neue', Georgia, serif;
+		font-family: var(--font-brand);
 		font-size: 1.35rem;
 		letter-spacing: 0.1em;
-		color: #c8821a;
+		color: var(--color-accent);
 		line-height: 1.1;
 	}
 
 	.brand-sub {
+		font-family: var(--font-mono);
 		font-size: 0.6rem;
-		letter-spacing: 0.25em;
+		letter-spacing: 0.2em;
 		text-transform: uppercase;
-		color: rgba(200, 130, 26, 0.4);
+		color: color-mix(in srgb, var(--color-accent) 40%, transparent);
 		margin-top: 1px;
 	}
 
@@ -289,13 +296,14 @@
 	}
 
 	.nav-link {
+		position: relative;
 		display: flex;
 		align-items: center;
 		padding: 0.5rem 0.75rem;
 		border-radius: 5px;
 		font-size: 0.85rem;
 		font-weight: 500;
-		color: rgba(232, 213, 176, 0.55);
+		color: color-mix(in srgb, var(--color-fg-muted) 55%, transparent);
 		text-decoration: none;
 		transition:
 			color 0.15s,
@@ -304,14 +312,27 @@
 	}
 
 	.nav-link:hover {
-		color: rgba(232, 213, 176, 0.88);
-		background: rgba(200, 130, 26, 0.08);
+		color: color-mix(in srgb, var(--color-fg-muted) 88%, transparent);
+		background: color-mix(in srgb, var(--color-accent) 8%, transparent);
 	}
 
 	.nav-link.active {
-		color: #c8821a;
-		background: rgba(200, 130, 26, 0.13);
-		border-left-color: #c8821a;
+		color: var(--color-accent);
+		background: color-mix(in srgb, var(--color-accent) 13%, transparent);
+		border-left-color: var(--color-accent);
+	}
+
+	/* Active-tab notch — pokes a small diamond into the border seam, like a connector pin */
+	.nav-link.active::after {
+		content: '';
+		position: absolute;
+		right: -1px;
+		top: 50%;
+		width: 8px;
+		height: 8px;
+		background: var(--color-void);
+		transform: translateY(-50%) rotate(45deg);
+		box-shadow: -1px 1px 0 color-mix(in srgb, var(--color-accent) 30%, transparent);
 	}
 
 	.sidebar-bottom {
@@ -328,9 +349,9 @@
 		border-radius: 5px;
 		font-size: 0.78rem;
 		font-weight: 500;
-		color: rgba(200, 130, 26, 0.5);
+		color: color-mix(in srgb, var(--color-accent) 50%, transparent);
 		text-decoration: none;
-		border: 1px solid rgba(200, 130, 26, 0.18);
+		border: 1px solid color-mix(in srgb, var(--color-accent) 18%, transparent);
 		transition:
 			color 0.15s,
 			background 0.15s,
@@ -338,13 +359,13 @@
 	}
 
 	.view-site-link:hover {
-		color: #c8821a;
-		background: rgba(200, 130, 26, 0.08);
-		border-color: rgba(200, 130, 26, 0.4);
+		color: var(--color-accent);
+		background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+		border-color: color-mix(in srgb, var(--color-accent) 40%, transparent);
 	}
 
 	.sidebar-footer {
-		border-top: 1px solid rgba(200, 140, 30, 0.12);
+		border-top: 1px solid color-mix(in srgb, var(--color-accent) 12%, transparent);
 		padding: 0.625rem;
 	}
 
@@ -354,7 +375,7 @@
 		border-radius: 5px;
 		font-size: 0.78rem;
 		text-align: left;
-		color: rgba(232, 213, 176, 0.3);
+		color: color-mix(in srgb, var(--color-fg-muted) 30%, transparent);
 		background: none;
 		border: none;
 		cursor: pointer;
@@ -364,7 +385,7 @@
 	}
 
 	.logout-btn:hover {
-		color: rgba(232, 213, 176, 0.7);
+		color: color-mix(in srgb, var(--color-fg-muted) 70%, transparent);
 		background: rgba(255, 255, 255, 0.04);
 	}
 
@@ -372,7 +393,7 @@
 	.main-content {
 		flex: 1;
 		overflow-y: auto;
-		background-color: #fafaf9;
+		background-color: var(--color-void);
 		padding: 2rem;
 		/* mobile: top bar + bottom nav */
 		padding-top: calc(3.5rem + 2rem);
@@ -391,13 +412,13 @@
 		height: 3.5rem;
 		padding: 0 1rem;
 		padding-top: env(safe-area-inset-top);
-		background-color: #16100a;
+		background-color: var(--color-panel);
 		background-image: radial-gradient(
 			ellipse 80% 100% at 20% 0%,
-			rgba(200, 130, 20, 0.09) 0%,
+			color-mix(in srgb, var(--color-accent) 9%, transparent) 0%,
 			transparent 100%
 		);
-		border-bottom: 1px solid rgba(200, 140, 30, 0.15);
+		border-bottom: 1px solid color-mix(in srgb, var(--color-accent) 15%, transparent);
 		z-index: 50;
 	}
 
@@ -405,14 +426,14 @@
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
-		color: #c8821a;
+		color: var(--color-accent);
 	}
 
 	.mobile-brand-name {
-		font-family: 'Bebas Neue', Georgia, serif;
+		font-family: var(--font-brand);
 		font-size: 1.25rem;
 		letter-spacing: 0.1em;
-		color: #c8821a;
+		color: var(--color-accent);
 		line-height: 1;
 	}
 
@@ -420,7 +441,7 @@
 		font-size: 0.6rem;
 		letter-spacing: 0.2em;
 		text-transform: uppercase;
-		color: rgba(200, 130, 26, 0.45);
+		color: color-mix(in srgb, var(--color-accent) 45%, transparent);
 		align-self: flex-end;
 		padding-bottom: 2px;
 	}
@@ -439,7 +460,7 @@
 		width: 2.5rem;
 		height: 2.5rem;
 		border-radius: 8px;
-		color: rgba(232, 213, 176, 0.45);
+		color: color-mix(in srgb, var(--color-fg-muted) 45%, transparent);
 		background: none;
 		border: none;
 		cursor: pointer;
@@ -449,7 +470,7 @@
 
 	.mobile-view-site:hover,
 	.mobile-logout:hover {
-		color: rgba(232, 213, 176, 0.85);
+		color: color-mix(in srgb, var(--color-fg-muted) 85%, transparent);
 		background: rgba(255, 255, 255, 0.06);
 	}
 
@@ -463,8 +484,8 @@
 		right: 0;
 		height: calc(4rem + env(safe-area-inset-bottom));
 		padding-bottom: env(safe-area-inset-bottom);
-		background-color: #16100a;
-		border-top: 1px solid rgba(200, 140, 30, 0.15);
+		background-color: var(--color-panel);
+		border-top: 1px solid color-mix(in srgb, var(--color-accent) 15%, transparent);
 		z-index: 50;
 	}
 
@@ -476,7 +497,7 @@
 		justify-content: center;
 		gap: 3px;
 		text-decoration: none;
-		color: rgba(232, 213, 176, 0.4);
+		color: color-mix(in srgb, var(--color-fg-muted) 40%, transparent);
 		font-size: 0.65rem;
 		font-weight: 500;
 		letter-spacing: 0.03em;
@@ -485,11 +506,11 @@
 	}
 
 	.bottomnav-item:active {
-		background: rgba(200, 130, 26, 0.08);
+		background: color-mix(in srgb, var(--color-accent) 8%, transparent);
 	}
 
 	.bottomnav-item.active {
-		color: #c8821a;
+		color: var(--color-accent);
 	}
 
 	.bottomnav-label {
@@ -503,7 +524,7 @@
 		bottom: 0.75rem;
 		right: 0.75rem;
 		font-size: 0.7rem;
-		color: rgba(120, 113, 108, 0.4);
+		color: color-mix(in srgb, var(--color-fg-muted) 40%, transparent);
 		pointer-events: none;
 		z-index: 40;
 	}
