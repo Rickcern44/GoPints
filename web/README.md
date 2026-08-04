@@ -1,6 +1,6 @@
-# sv
+# GoPints Web
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+SvelteKit frontend for the kegerator monitoring system, scaffolded with [`sv`](https://github.com/sveltejs/cli).
 
 ## Creating a project
 
