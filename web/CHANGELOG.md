@@ -1,7 +1,16 @@
 # Changelog
 
 All notable changes to the web UI are documented here.
-## 0.5.1-13 - 2026-07-30
+## 0.5.2-15 - 2026-08-04
+
+### Features
+
+- Automate deploy manifest image tags via kustomize
+
+- Redesign frontend as unified "Precision Tap Console"
+
+
+## 0.5.1 - 2026-07-30
 
 ### Bug Fixes
 
