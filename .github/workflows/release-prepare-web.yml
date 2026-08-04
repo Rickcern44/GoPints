@@ -31,8 +31,9 @@ jobs:
 
       - name: Detect release-prep merge
         id: detect
+        env:
+          MSG: ${{ github.event.head_commit.message }}
         run: |
-          MSG="${{ github.event.head_commit.message }}"
           if [[ "$MSG" == *"release-prep/web-v"* ]]; then
             VERSION="$(echo "$MSG" | grep -oE 'release-prep/web-v[0-9]+\.[0-9]+\.[0-9]+' | head -1 | sed 's#release-prep/web-v##')"
             if [[ -z "$VERSION" ]]; then
