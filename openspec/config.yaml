@@ -10,7 +10,7 @@ schema: spec-driven
 #     Domain: e-commerce platform
 
 context: |
-  TechStack: Go (API and agent), Sveltkit 5, SQLite, Docker, Kubernetes, playwright
+  TechStack: Go (API and agent), Sveltkit 5, SQLite, Docker (docker compose), playwright
   Conventions: We use conventional commits
   Testing: Each feature needs to be testsed end to end
   Overview: An application that allows a user with kegerator with one or multiple taps to track
