@@ -1,10 +1,7 @@
 name: Publish
 
 # Fires when release-prepare-backend.yml / release-prepare-web.yml finalizes a
-# release-prep PR merge and publishes the GitHub release. Also bumps the
-# k8s deployment manifest's image tag (via kustomize) with a direct commit,
-# but only after the corresponding image is confirmed pushed to GHCR
-# (ArgoCD auto-syncs off this repo, so that ordering matters).
+# release-prep PR merge and publishes the GitHub release.
 on:
   release:
     types: [published]
@@ -158,74 +155,3 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_CURRENT_TAG: v${{ needs.prepare.outputs.version }}
-
-  # ── Infra manifest version bump (direct commit, only after the image is
-  #    confirmed pushed) ───────────────────────────────────────────────────
-  # ArgoCD auto-syncs off this repo, so the deployment.yaml image tag must
-  # never point at a version that isn't actually in GHCR yet. Bumping it
-  # here, after build-server/build-web succeed, guarantees that invariant —
-  # it's why this isn't done in the pre-merge release-prep PR.
-  bump-infra-version:
-    name: Bump infra manifest image tag
-    needs: [prepare, build-server, build-web]
-    if: |
-      always() &&
-      (
-        (needs.prepare.outputs.package == 'gopints' && needs.build-server.result == 'success') ||
-        (needs.prepare.outputs.package == 'web' && needs.build-web.result == 'success')
-      )
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: main
-
-      - name: Set up kustomize
-        uses: imranismail/setup-kustomize@v2
-
-      - name: Determine deploy directory and image name
-        id: target
-        run: |
-          case "${{ needs.prepare.outputs.package }}" in
-            gopints)
-              echo "dir=gopints/infrastructure/deploy" >> "$GITHUB_OUTPUT"
-              echo "image=gopints-server" >> "$GITHUB_OUTPUT"
-              ;;
-            web)
-              echo "dir=web/infrastructure/deploy" >> "$GITHUB_OUTPUT"
-              echo "image=gopints-web" >> "$GITHUB_OUTPUT"
-              ;;
-            *)
-              echo "Unknown package: ${{ needs.prepare.outputs.package }}" >&2
-              exit 1
-              ;;
-          esac
-
-      - name: Update image tag and commit
-        env:
-          GIT_COMMIT_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
-        run: |
-          IMAGE_REF="${{ env.REGISTRY }}/rickcern44/${{ steps.target.outputs.image }}"
-          DEPLOY_DIR="${{ steps.target.outputs.dir }}"
-          VERSION="${{ needs.prepare.outputs.version }}"
-
-          (cd "$DEPLOY_DIR" && kustomize edit set image "${IMAGE_REF}=${IMAGE_REF}:${VERSION}")
-
-          if git diff --quiet -- "$DEPLOY_DIR/kustomization.yaml"; then
-            echo "Manifest already at ${VERSION}; nothing to commit."
-            exit 0
-          fi
-
-          if ! kustomize build "$DEPLOY_DIR" | grep -qF "image: ${IMAGE_REF}:${VERSION}"; then
-            echo "Rendered manifest does not contain expected image tag ${IMAGE_REF}:${VERSION}; aborting." >&2
-            exit 1
-          fi
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "$DEPLOY_DIR/kustomization.yaml"
-          git commit -m "chore(deploy): bump ${{ needs.prepare.outputs.package }} image tag to ${VERSION}"
-          git remote set-url origin "https://x-access-token:${GIT_COMMIT_TOKEN}@github.com/${{ github.repository }}.git"
-          git push origin HEAD:main

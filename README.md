@@ -116,7 +116,7 @@ npm run dev                               # dev server on :5173, proxies /api �
 ## Repository structure
 
 ```
-project-torrent/
+.
 ├── gopints/                  Go backend
 │   ├── cmd/agent/            Pi GPIO agent binary
 │   ├── cmd/server/           REST + WebSocket server binary
@@ -276,9 +276,9 @@ Versioning is driven by [Conventional Commits](https://www.conventionalcommits.o
 | `feat:` | minor |
 | `feat!:` or `BREAKING CHANGE:` | major |
 
-When commits touching a package land on `main`, its `release-prepare-*.yml` workflow opens or updates a single pull request (`release-prep/<package>-v<version>`) containing that package's `CHANGELOG.md` entry and its Kubernetes deployment manifest image-tag bump together (and, for `web`, the `package.json` version bump). No PR opens if there's nothing releasable since the last tag.
+When commits touching a package land on `main`, its `release-prepare-*.yml` workflow opens or updates a single pull request (`release-prep/<package>-v<version>`) containing that package's `CHANGELOG.md` entry (and, for `web`, the `package.json` version bump). No PR opens if there's nothing releasable since the last tag.
 
-Merging that PR **is** the release: the same workflow detects the merge, creates the `gopints-vX.Y.Z` or `web-vX.Y.Z` tag, and publishes the GitHub Release — which fires `release.yml` to publish that package's artifacts. There's no separate post-publish step; the infra manifest is already correct by the time the tag exists.
+Merging that PR **is** the release: the same workflow detects the merge, creates the `gopints-vX.Y.Z` or `web-vX.Y.Z` tag, and publishes the GitHub Release — which fires `release.yml` to publish that package's artifacts. Deploying is a separate step: on the host running `docker-compose.yml`, `docker compose pull && docker compose up -d` picks up the new images.
 
 ### Released artifacts
 

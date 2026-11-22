@@ -1,6 +1,6 @@
 ## Purpose
 
-Defines a single per-package pull request that bundles a package's version bump and changelog update together, and clarifies exactly what triggers that package's release (tag + GitHub Release) versus its infrastructure manifest update — replacing the previous flow of a separate release-prep PR plus a separate post-publish infra-bump PR.
+Defines a single per-package pull request that bundles a package's version bump and changelog update together, and and clarifies exactly what triggers that package's release (tag + GitHub Release).
 
 ## Requirements
 
@@ -25,25 +25,3 @@ Merging a package's consolidated release pull request SHALL create that package'
 #### Scenario: Ordinary push is not mistaken for a release merge
 - **WHEN** a push to `main` touching `gopints/**` is not the merge of a `gopints` consolidated release pull request
 - **THEN** the system does not create a tag or publish a release from that push; it only evaluates whether to open or update a consolidated release pull request
-
-### Requirement: No separate post-publish infra-bump pull request
-The system SHALL NOT open any additional pull request after a release publishes to update the infrastructure deployment manifest.
-
-#### Scenario: Release publishes
-- **WHEN** a package's GitHub Release publishes
-- **THEN** no new pull request is opened to update that package's infrastructure deployment manifest
-
-### Requirement: Infra manifest is only updated after the image is confirmed pushed
-The system SHALL NOT update a package's infrastructure deployment manifest image tag until that package's container image has been successfully built and pushed to the registry. The manifest update SHALL be a direct commit to `main`, not part of the pre-merge release-prep pull request, so that a GitOps controller watching this repository never observes an image tag that does not yet exist in the registry.
-
-#### Scenario: Image push succeeds
-- **WHEN** a package's container image finishes building and pushing to the registry successfully
-- **THEN** that package's infrastructure deployment manifest image tag is updated to the new version via a direct commit to `main`
-
-#### Scenario: Image push fails
-- **WHEN** a package's container image build or push fails
-- **THEN** the infrastructure deployment manifest is not updated, and continues to reference the last successfully published version
-
-#### Scenario: Release-prep pull request never touches the manifest
-- **WHEN** a release-prep pull request is opened or updated for either package
-- **THEN** it does not include any change to that package's `infrastructure/deploy/deployment.yaml`
