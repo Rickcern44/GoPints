@@ -278,8 +278,6 @@ Releases are always stable (no pre-release versions). When a push to `main` cont
 
 If a release's build fails after the tag was created, re-run it with **Actions → Release → Run workflow** and the existing tag name (e.g. `web-v0.6.0`); later pushes won't re-release commits that are already covered by a tag.
 
-> `CHANGELOG.md` files in the repo are frozen history from the previous PR-based flow.
-
 ### Released artifacts
 
 | Artifact | Triggered by | Registry / location |
