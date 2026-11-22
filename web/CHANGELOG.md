@@ -1,7 +1,14 @@
 # Changelog
 
 All notable changes to the web UI are documented here.
-## 0.5.2-15 - 2026-08-04
+## 0.5.3-6 - 2026-11-22
+
+### Bug Fixes
+
+- Set imagePullPolicy: Always on both deployments
+
+
+## 0.5.2 - 2026-08-04
 
 ### Features
 
@@ -17,6 +24,16 @@ All notable changes to the web UI are documented here.
 - GitVersion has no native path-scoped commit filtering
 
 - Use TaggedCommit strategy, not ConfiguredNextVersion
+
+
+### Features
+
+- Adding new layout and infra
+
+
+### ci
+
+- Replace release-please with GitVersion + git-cliff, consolidate to one PR per package
 
 
 ## 0.5.0 - 2026-07-30
@@ -35,16 +52,9 @@ All notable changes to the web UI are documented here.
 
 - Added PWA support and added reload to avoid stale data when using admin panel
 
-- Adding new layout and infra
-
 
 ### bug
 
 - Upated login flow to avoid login loop
-
-
-### ci
-
-- Replace release-please with GitVersion + git-cliff, consolidate to one PR per package
 
 
