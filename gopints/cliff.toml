@@ -24,6 +24,8 @@ sort_commits = "oldest"
 topo_order_commits = true
 
 commit_parsers = [
+  # Retired Kubernetes deploy automation (see scripts/next-version.sh).
+  { message = "^(feat\\(release\\): automate deploy manifest|fix\\(deploy\\): set imagePullPolicy)", skip = true },
   { message = "^feat", group = "Features" },
   { message = "^fix", group = "Bug Fixes" },
   { message = "^perf", group = "Performance" },

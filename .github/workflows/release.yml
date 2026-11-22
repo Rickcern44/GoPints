@@ -1,40 +1,108 @@
-name: Publish
+name: Release
 
-# Fires when release-prepare-backend.yml / release-prepare-web.yml finalizes a
-# release-prep PR merge and publishes the GitHub release.
+# Every push to main that touches gopints/ or web/ releases whichever package(s)
+# have releasable Conventional Commits (fix/feat/breaking) since their last
+# <package>-v* tag: tag + GitHub Release, then build and publish artifacts.
+# There is no release PR; main is the trigger. Nothing is committed back.
+#
+# workflow_dispatch re-publishes artifacts for an existing tag (e.g. after a
+# failed build).
 on:
-  release:
-    types: [published]
+  push:
+    branches: [main]
+    paths:
+      - 'gopints/**'
+      - 'web/**'
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Release tag to (re)publish artifacts for, e.g. gopints-v0.5.1'
+        description: 'Existing release tag to (re)publish artifacts for, e.g. gopints-v0.5.1'
         required: true
+
+# Serialize runs so each one sees the tags created by the previous one.
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 env:
   REGISTRY: ghcr.io
 
 jobs:
-  # ── Parse the per-package release tag (<package>-v<version>) ───────────────
-  prepare:
-    name: Parse release tag
+  # ── Decide which packages release, and at what version ─────────────────────
+  plan:
+    name: Plan release
     runs-on: ubuntu-latest
     outputs:
-      package: ${{ steps.parse.outputs.package }}
-      version: ${{ steps.parse.outputs.version }}
+      gopints_version: ${{ steps.plan.outputs.gopints_version }}
+      web_version: ${{ steps.plan.outputs.web_version }}
+      releases: ${{ steps.plan.outputs.releases }}
     steps:
-      - name: Parse tag
-        id: parse
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute versions
+        id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          TAG_INPUT: ${{ github.event.inputs.tag_name }}
         run: |
-          TAG="${{ github.event.inputs.tag_name || github.event.release.tag_name }}"
-          echo "package=${TAG%%-v*}" >> "$GITHUB_OUTPUT"
-          echo "version=${TAG#*-v}" >> "$GITHUB_OUTPUT"
+          releases='[]'
+          if [[ "$EVENT" == "workflow_dispatch" ]]; then
+            if [[ ! "$TAG_INPUT" =~ ^(gopints|web)-v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+              echo "Invalid tag: $TAG_INPUT" >&2
+              exit 1
+            fi
+            echo "${BASH_REMATCH[1]}_version=${BASH_REMATCH[2]}" >> "$GITHUB_OUTPUT"
+          else
+            for pkg in gopints web; do
+              version="$(scripts/next-version.sh "$pkg")"
+              echo "${pkg}_version=${version}" >> "$GITHUB_OUTPUT"
+              if [[ -n "$version" ]]; then
+                releases="$(jq -c --arg p "$pkg" --arg v "$version" '. + [{package: $p, version: $v}]' <<<"$releases")"
+              fi
+            done
+          fi
+          echo "releases=${releases}" >> "$GITHUB_OUTPUT"
+          echo "Planned releases: ${releases}"
+
+  # ── Tag + GitHub Release (notes from git-cliff) ────────────────────────────
+  release:
+    name: Release ${{ matrix.package }} v${{ matrix.version }}
+    needs: plan
+    if: needs.plan.outputs.releases != '[]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.releases) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate release notes
+        uses: orhun/git-cliff-action@v4
+        env:
+          OUTPUT: release-notes.md
+        with:
+          config: ${{ matrix.package }}/cliff.toml
+          args: --unreleased --tag ${{ matrix.package }}-v${{ matrix.version }} --strip header
+
+      - name: Create tag and GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ matrix.package }}-v${{ matrix.version }}"
+          gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --notes-file release-notes.md
 
   # ── Docker containers (web + server) ───────────────────────────────────────
   build-server:
     name: Build & push server container
-    needs: prepare
-    if: needs.prepare.outputs.package == 'gopints'
+    needs: [plan, release]
+    if: ${{ !cancelled() && needs.release.result != 'failure' && needs.plan.outputs.gopints_version != '' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -61,8 +129,8 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ github.repository }}-server
           tags: |
-            type=semver,pattern={{version}},value=v${{ needs.prepare.outputs.version }}
-            type=semver,pattern={{major}}.{{minor}},value=v${{ needs.prepare.outputs.version }}
+            type=semver,pattern={{version}},value=v${{ needs.plan.outputs.gopints_version }}
+            type=semver,pattern={{major}}.{{minor}},value=v${{ needs.plan.outputs.gopints_version }}
             type=raw,value=latest
 
       - name: Build and push
@@ -77,12 +145,12 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
-            VERSION=${{ needs.prepare.outputs.version }}
+            VERSION=${{ needs.plan.outputs.gopints_version }}
 
   build-web:
     name: Build & push web container
-    needs: prepare
-    if: needs.prepare.outputs.package == 'web'
+    needs: [plan, release]
+    if: ${{ !cancelled() && needs.release.result != 'failure' && needs.plan.outputs.web_version != '' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -109,8 +177,8 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ github.repository }}-web
           tags: |
-            type=semver,pattern={{version}},value=v${{ needs.prepare.outputs.version }}
-            type=semver,pattern={{major}}.{{minor}},value=v${{ needs.prepare.outputs.version }}
+            type=semver,pattern={{version}},value=v${{ needs.plan.outputs.web_version }}
+            type=semver,pattern={{major}}.{{minor}},value=v${{ needs.plan.outputs.web_version }}
             type=raw,value=latest
 
       - name: Build and push
@@ -125,13 +193,13 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
-            VERSION=${{ needs.prepare.outputs.version }}
+            VERSION=${{ needs.plan.outputs.web_version }}
 
   # ── Agent binaries (GoReleaser) ────────────────────────────────────────────
   goreleaser:
     name: Build & attach agent binaries
-    needs: prepare
-    if: needs.prepare.outputs.package == 'gopints'
+    needs: [plan, release]
+    if: ${{ !cancelled() && needs.release.result != 'failure' && needs.plan.outputs.gopints_version != '' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -154,4 +222,4 @@ jobs:
           args: release --clean --skip=validate
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GORELEASER_CURRENT_TAG: v${{ needs.prepare.outputs.version }}
+          GORELEASER_CURRENT_TAG: v${{ needs.plan.outputs.gopints_version }}
