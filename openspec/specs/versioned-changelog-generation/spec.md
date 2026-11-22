@@ -1,6 +1,6 @@
 ## Purpose
 
-Defines independent, per-package (`gopints`, `web`) semantic version computation and changelog generation from Conventional Commits, using GitVersion for version computation and git-cliff for changelog generation, scoped strictly to each package's own path and tag history.
+Defines independent, per-package (`gopints`, `web`) semantic version computation and release-note generation from Conventional Commits, using `scripts/next-version.sh` for version computation and git-cliff for release-note generation, scoped strictly to each package's own path and tag history.
 
 ## Requirements
 
@@ -23,13 +23,13 @@ The system SHALL compute each package's (`gopints`, `web`) next semantic version
 - **WHEN** no commits since a package's last matching tag contain a Conventional Commit type that warrants a version bump (`feat`, `fix`, or a breaking change)
 - **THEN** that package's computed next version is unchanged from its last released version
 
-### Requirement: Independent per-package changelog generation
-The system SHALL generate each package's `CHANGELOG.md` entries from only the commits scoped to that package's path, bounded by that package's own tag history.
+### Requirement: Independent per-package release notes
+The system SHALL generate each package's release notes from only the commits scoped to that package's path, bounded by that package's own tag history.
 
 #### Scenario: gopints changelog excludes web-only commits
-- **WHEN** a release-prep run generates `gopints/CHANGELOG.md`
-- **THEN** the generated entries include only commits that touched files under `gopints/`; commits that touched only `web/` do not appear
+- **WHEN** release notes are generated for a `gopints` release
+- **THEN** the generated notes include only commits that touched files under `gopints/`; commits that touched only `web/` do not appear
 
 #### Scenario: web changelog excludes gopints-only commits
-- **WHEN** a release-prep run generates `web/CHANGELOG.md`
-- **THEN** the generated entries include only commits that touched files under `web/`; commits that touched only `gopints/` do not appear
+- **WHEN** release notes are generated for a `web` release
+- **THEN** the generated notes include only commits that touched files under `web/`; commits that touched only `gopints/` do not appear

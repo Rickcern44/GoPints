@@ -1,3 +1,0 @@
-tag-prefix: 'gopints-v'
-strategies:
-  - TaggedCommit
