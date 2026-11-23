@@ -21,11 +21,11 @@ range="${last_tag:+${last_tag}..}HEAD"
 commits="$(git log "$range" --format='%B' -- "${pkg}/" ":(exclude)${pkg}/infrastructure")"
 
 if grep -qE '^[a-z]+(\([^)]*\))?!:|BREAKING CHANGE:' <<<"$commits"; then
-  bump=major
+  bump="major"
 elif grep -qE '^feat(\([^)]*\))?:' <<<"$commits"; then
-  bump=minor
+  bump="minor"
 elif grep -qE '^fix(\([^)]*\))?:' <<<"$commits"; then
-  bump=patch
+  bump="patch"
 else
   exit 0
 fi

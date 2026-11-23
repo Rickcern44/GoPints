@@ -33,4 +33,5 @@ commit_parsers = [
   { message = "^chore", skip = true },
   { message = "^docs", skip = true },
   { message = "^test", skip = true },
+  { message = "^(ci|build|style)", skip = true },
 ]
